@@ -54,10 +54,9 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
     setSelectedAnswer(answerIndex);
     clearInterval(timerRef.current);
 
-    // Play sound
-    if (answerIndex === -1) sounds.wrong();
-    else if (answerIndex === currentQuestion.correctIndex) sounds.correct();
-    else sounds.wrong();
+    // Neutral tap sound only — whether the answer was right or wrong is NOT
+    // revealed during the game; all results are shown at the end.
+    sounds.select();
 
     const elapsed = Date.now() - startTimeRef.current;
     await onSubmitAnswer(currentIndex, answerIndex, elapsed);
@@ -218,13 +217,10 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
 
           <div className="answer-grid">
             {currentQuestion.answers.map((answer, idx) => {
+              // Only highlight the answer the player picked (neutral) — no
+              // green/red right-or-wrong reveal here; results come at the end.
               let cls = "answer-btn";
-              if (answered) {
-                if (idx === currentQuestion.correctIndex) cls += " correct";
-                else if (idx === selectedAnswer) cls += " wrong";
-              } else if (idx === selectedAnswer) {
-                cls += " selected";
-              }
+              if (idx === selectedAnswer) cls += " selected";
               return (
                 <button
                   key={idx}
