@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithGoogle, signInAsGuest } from "../firebase/auth";
 import { createRoom, joinRoom } from "../firebase/room";
+import { useLang, useT } from "../i18n.jsx";
+import LanguageToggle from "../components/LanguageToggle";
 
 const PRESET_NAMES = ["Daniel", "Lea", "Aba", "Ima"];
 const PLAYER_COLORS = ["#7c3aed", "#3b82f6", "#06b6d4", "#ec4899", "#f97316", "#22c55e", "#eab308", "#ef4444"];
 
 export default function Home() {
   const navigate = useNavigate();
+  const { lang } = useLang();
+  const tr = useT();
   const [mode, setMode] = useState(null); // null | 'create' | 'join'
   const [authStep, setAuthStep] = useState(false);
   const [authMode, setAuthMode] = useState(null); // 'google' | 'guest'
@@ -24,11 +28,11 @@ export default function Home() {
 
   const handleProceed = (action) => {
     if (!getFinalName()) {
-      setError("Please choose or enter your name!");
+      setError(tr("errNoName"));
       return;
     }
     if (action === "join" && joinCode.trim().length !== 4) {
-      setError("Please enter the 4-digit room code!");
+      setError(tr("errNoCode"));
       return;
     }
     setError("");
@@ -61,14 +65,14 @@ export default function Home() {
       sessionStorage.setItem("player", JSON.stringify(playerData));
 
       if (pendingAction === "create") {
-        const code = await createRoom(playerData);
+        const code = await createRoom(playerData, lang);
         navigate(`/room/${code}`);
       } else {
         await joinRoom(joinCode.trim(), playerData);
         navigate(`/room/${joinCode.trim()}`);
       }
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err.message || tr("errGeneric"));
       setAuthStep(false);
     } finally {
       setLoading(false);
@@ -78,13 +82,14 @@ export default function Home() {
   return (
     <div className="app-container">
       <div className="bg-glow" />
+      <LanguageToggle style={{ position: "absolute", top: 12, insetInlineEnd: 12, zIndex: 3 }} />
       <div className="page-center animate-fade-in" style={{ position: "relative", zIndex: 1, gap: "1.5rem" }}>
 
         {/* Logo */}
         <div className="logo">
           <div className="logo-icon">🏆</div>
-          <div className="logo-title">Family Trivia</div>
-          <div className="logo-subtitle" style={{ color: "var(--accent-purple-light)", fontWeight: 700 }}>BATTLE</div>
+          <div className="logo-title">{tr("logoTitle")}</div>
+          <div className="logo-subtitle" style={{ color: "var(--accent-purple-light)", fontWeight: 700 }}>{tr("battle")}</div>
         </div>
 
         {/* Auth Step */}
@@ -92,9 +97,9 @@ export default function Home() {
           <div className="card animate-scale-in" style={{ width: "100%", maxWidth: 380 }}>
             <div className="stack stack-md">
               <div className="text-center">
-                <h3>Sign in to continue</h3>
+                <h3>{tr("signInTitle")}</h3>
                 <p className="text-sm text-muted mt-sm">
-                  Sign in with Google to save your stats, or play as a guest.
+                  {tr("signInSubtitle")}
                 </p>
               </div>
 
@@ -105,21 +110,21 @@ export default function Home() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
+                {tr("continueGoogle")}
               </button>
 
               <div className="row row-center gap-sm" style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
                 <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
-                or
+                {tr("or")}
                 <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
               </div>
 
               <button id="btn-guest-signin" className="btn btn-secondary btn-full" onClick={() => handleAuth("guest")} disabled={loading}>
-                👤 Play as Guest
+                {tr("playGuest")}
               </button>
 
               <p className="text-xs text-muted text-center">
-                Guest play is available but stats won't be saved long-term.
+                {tr("guestNote")}
               </p>
 
               {error && (
@@ -128,20 +133,20 @@ export default function Home() {
                 </div>
               )}
 
-              <button className="btn btn-secondary btn-sm" onClick={() => setAuthStep(false)}>← Back</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setAuthStep(false)}>{tr("back")}</button>
             </div>
           </div>
         ) : mode === null ? (
           /* Main Menu */
           <div className="stack stack-md animate-scale-in" style={{ width: "100%", maxWidth: 380 }}>
             <button id="btn-create-room" className="btn btn-primary btn-full btn-lg" onClick={() => setMode("create")}>
-              ✨ Create a Room
+              {tr("createRoom")}
             </button>
             <button id="btn-join-room" className="btn btn-secondary btn-full btn-lg" onClick={() => setMode("join")}>
-              🔗 Join a Room
+              {tr("joinRoom")}
             </button>
             <p className="text-xs text-muted text-center">
-              Free to play • No downloads • Works on any phone
+              {tr("tagline")}
             </p>
           </div>
         ) : (
@@ -149,8 +154,8 @@ export default function Home() {
           <div className="card animate-scale-in" style={{ width: "100%", maxWidth: 380 }}>
             <div className="stack stack-md">
               <div>
-                <h3>{mode === "create" ? "✨ Create a Room" : "🔗 Join a Room"}</h3>
-                <p className="text-sm text-muted mt-sm">Choose your player name</p>
+                <h3>{mode === "create" ? tr("createTitle") : tr("joinTitle")}</h3>
+                <p className="text-sm text-muted mt-sm">{tr("chooseName")}</p>
               </div>
 
               {/* Preset Names */}
@@ -174,14 +179,14 @@ export default function Home() {
 
               <div className="row gap-sm" style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
                 <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
-                or type your name
+                {tr("orTypeName")}
                 <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
               </div>
 
               <input
                 id="input-custom-name"
                 className="input"
-                placeholder="Your name..."
+                placeholder={tr("yourName")}
                 value={customName}
                 onChange={(e) => { setCustomName(e.target.value); setPlayerName(""); setError(""); }}
                 maxLength={20}
@@ -191,7 +196,7 @@ export default function Home() {
                 <input
                   id="input-room-code"
                   className="input"
-                  placeholder="Room code (4 digits)"
+                  placeholder={tr("roomCodePlaceholder")}
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
                   maxLength={4}
@@ -212,11 +217,11 @@ export default function Home() {
                 onClick={() => handleProceed(mode)}
                 disabled={loading}
               >
-                {mode === "create" ? "Create Room →" : "Join Room →"}
+                {mode === "create" ? tr("createRoomGo") : tr("joinRoomGo")}
               </button>
 
               <button className="btn btn-secondary btn-sm" onClick={() => { setMode(null); setError(""); }}>
-                ← Back
+                {tr("back")}
               </button>
             </div>
           </div>

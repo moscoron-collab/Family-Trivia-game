@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useT } from "../i18n.jsx";
 
 const FIREWORK_COLORS = ["#7c3aed", "#3b82f6", "#06b6d4", "#ec4899", "#f97316", "#22c55e", "#eab308", "#ef4444"];
 
@@ -22,6 +23,7 @@ function getTopicStats(answers, questions) {
 const RANK_EMOJIS = ["🥇", "🥈", "🥉"];
 
 export default function ResultsScreen({ room, code, player, onPlayAgain, onResetRoom }) {
+  const tr = useT();
   const [showReview, setShowReview] = useState(false);
   const [playAgainVoted, setPlayAgainVoted] = useState(false);
   const [myVote, setMyVote] = useState(null);
@@ -125,19 +127,19 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
         }}>
           <div style={{ fontSize: "2.5rem" }}>🏆</div>
           <div className="text-gold" style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginTop: "0.25rem" }}>
-            Winner
+            {tr("winner")}
           </div>
           <h2 style={{ color: "var(--accent-yellow)", marginTop: "0.25rem" }}>{winner?.name}</h2>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "2rem", fontWeight: 900, color: "var(--text-primary)", marginTop: "0.25rem" }}>
-            {winner?.score || 0} pts
+            {winner?.score || 0} {tr("pts")}
           </p>
           {isWinner && (
-            <div className="badge badge-yellow" style={{ margin: "0.5rem auto 0" }}>🎉 That's you!</div>
+            <div className="badge badge-yellow" style={{ margin: "0.5rem auto 0" }}>{tr("thatsYou")}</div>
           )}
         </div>
 
         {/* Leaderboard */}
-        <h4 className="mb-sm">🏅 Leaderboard</h4>
+        <h4 className="mb-sm">{tr("leaderboard")}</h4>
         <div className="leaderboard mb-md">
           {sortedPlayers.map((p, i) => (
             <div key={p.uid} className={`leaderboard-item rank-${i + 1}`}>
@@ -150,7 +152,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
                   {p.name} {p.uid === player.uid ? <span className="badge badge-purple" style={{ fontSize: "0.6rem" }}>you</span> : ""}
                 </div>
                 <div className="text-xs text-muted">
-                  {p.status === "quit" ? "Left early" : `${Object.values(p.answers || {}).filter((a) => a.isCorrect).length}/${questions.length} correct`}
+                  {p.status === "quit" ? tr("leftEarly") : tr("correctCount", { n: Object.values(p.answers || {}).filter((a) => a.isCorrect).length, total: questions.length })}
                 </div>
               </div>
               <span className="leaderboard-score">{p.score || 0}</span>
@@ -161,7 +163,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
         {/* My Topic Stats */}
         {myTopicStats.length > 0 && (
           <div className="card mb-md">
-            <h4 className="mb-sm">📊 Your Topic Performance</h4>
+            <h4 className="mb-sm">{tr("topicPerf")}</h4>
             <div className="topic-strength-bar stack stack-sm">
               {myTopicStats.map((t) => (
                 <div key={t.label} className="topic-strength-row">
@@ -179,9 +181,9 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
               ))}
             </div>
             <div className="row gap-sm mt-md" style={{ flexWrap: "wrap" }}>
-              {myTopicStats[0] && <span className="badge badge-green">💪 Strong: {myTopicStats[0].label}</span>}
+              {myTopicStats[0] && <span className="badge badge-green">{tr("strong", { t: myTopicStats[0].label })}</span>}
               {myTopicStats[myTopicStats.length - 1] && myTopicStats.length > 1 && (
-                <span className="badge badge-red">📚 Weak: {myTopicStats[myTopicStats.length - 1].label}</span>
+                <span className="badge badge-red">{tr("weak", { t: myTopicStats[myTopicStats.length - 1].label })}</span>
               )}
             </div>
           </div>
@@ -193,7 +195,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
           className="btn btn-secondary btn-full mb-md"
           onClick={() => setShowReview((r) => !r)}
         >
-          {showReview ? "🔼 Hide Answer Review" : "📖 Show Answer Review"}
+          {showReview ? tr("hideReview") : tr("showReview")}
         </button>
 
         {showReview && (
@@ -212,14 +214,14 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
                   </div>
                   {didAnswer && (
                     <div className="review-your-answer text-muted">
-                      Your answer: <strong style={{ color: isCorrect ? "var(--accent-green)" : "var(--accent-red)" }}>
+                      {tr("yourAnswer")} <strong style={{ color: isCorrect ? "var(--accent-green)" : "var(--accent-red)" }}>
                         {q.answers[myAns.answerIndex]}
                       </strong>
                     </div>
                   )}
                   {!isCorrect && (
                     <div className="review-correct-answer">
-                      ✅ Correct: {q.answers[q.correctIndex]}
+                      {tr("correctAnswer")} {q.answers[q.correctIndex]}
                     </div>
                   )}
                   {q.explanation && (
@@ -233,33 +235,33 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
 
         {/* Play Again */}
         <div className="card mb-lg" style={{ textAlign: "center" }}>
-          <h3 className="mb-sm">Play Again?</h3>
+          <h3 className="mb-sm">{tr("playAgain")}</h3>
           {!playAgainVoted ? (
             <>
               <p className="text-sm text-muted mb-md">
-                Same room code, new topics, new questions!
+                {tr("playAgainSub")}
               </p>
               <div className="stack stack-sm">
                 <button id="btn-play-again-join" className="btn btn-primary btn-full" onClick={() => handlePlayAgain("join")}>
-                  🎮 I'm in! Play Again
+                  {tr("imIn")}
                 </button>
                 <button id="btn-play-again-leave" className="btn btn-secondary btn-full" onClick={() => handlePlayAgain("leave")}>
-                  🚪 I'm done, thanks!
+                  {tr("imDone")}
                 </button>
               </div>
             </>
           ) : myVote === "leave" ? (
-            <p className="text-secondary">👋 Thanks for playing!</p>
+            <p className="text-secondary">{tr("thanksPlaying")}</p>
           ) : (
             <>
               <p className="text-secondary mb-md">
-                ✅ You're in!{otherWaiting > 0 ? ` Waiting for ${otherWaiting} other player${otherWaiting > 1 ? "s" : ""}…` : " Starting…"}
+                {tr("youreIn")}{otherWaiting > 0 ? tr("waitingOthers", { n: otherWaiting, s: otherWaiting > 1 ? "s" : "" }) : tr("starting")}
               </p>
               <button id="btn-start-now" className="btn btn-primary btn-full" onClick={onResetRoom}>
-                ▶️ Start now (don't wait)
+                {tr("startNow")}
               </button>
               <p className="text-xs text-muted mt-sm">
-                New round starts automatically in {playAgainCountdown}s
+                {tr("autoRound", { n: playAgainCountdown })}
               </p>
             </>
           )}
@@ -274,7 +276,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
                   <div key={uid} className="row gap-sm" style={{ fontSize: "0.8rem" }}>
                     <span style={{ color: p.color }}>{p.name}:</span>
                     <span className={vote === "join" ? "text-green" : "text-red"}>
-                      {vote === "join" ? "🎮 Playing again" : "🚪 Leaving"}
+                      {vote === "join" ? tr("playingAgain") : tr("leaving")}
                     </span>
                   </div>
                 );

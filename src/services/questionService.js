@@ -4,28 +4,50 @@
 // - Instant & offline: no network call, so the game ALWAYS starts.
 // - No repeats within a game (questions are de-duplicated).
 // - Answers are shuffled, so the correct answer isn't always "A".
+// - Supports English ("en") and Hebrew ("he").
 // ============================================================
 
 import questionBank from "../data/questionBank";
+import questionBankHe from "../data/questionBankHe";
 
+const BANKS = {
+  en: questionBank,
+  he: questionBankHe,
+};
+
+function getBank(lang) {
+  return BANKS[lang] || BANKS.en;
+}
+
+// Topics carry both an English and a Hebrew name + a shared emoji.
 export const TOPICS = [
-  { id: "random", label: "🎲 Random Topic", emoji: "🎲" },
-  { id: "soccer", label: "⚽ Soccer Trivia", emoji: "⚽" },
-  { id: "animals", label: "🐬 Animals & Ocean", emoji: "🐬" },
-  { id: "beauty", label: "💅 Beauty & Style", emoji: "💅" },
-  { id: "movies", label: "🎬 Movies & Shows", emoji: "🎬" },
-  { id: "money", label: "💰 Money & Business", emoji: "💰" },
-  { id: "science", label: "🔬 Science Wow Facts", emoji: "🔬" },
-  { id: "family", label: "😂 Family & Funny Moments", emoji: "😂" },
-  { id: "geography", label: "🗺️ Countries & Famous Places", emoji: "🗺️" },
-  { id: "survival", label: "🏕️ Survival Trivia", emoji: "🏕️" },
-  { id: "logic", label: "🧠 Logic & Brain Teasers", emoji: "🧠" },
-  { id: "usa", label: "🇺🇸 USA Trivia", emoji: "🇺🇸" },
-  { id: "math", label: "➗ Math", emoji: "➗" },
-  { id: "mexico", label: "🇲🇽 Mexico / Spanish Trivia", emoji: "🇲🇽" },
-  { id: "dance", label: "🎵 Dance & Music", emoji: "🎵" },
-  { id: "fortnite", label: "🎮 Fortnite Trivia", emoji: "🎮" },
+  { id: "random", emoji: "🎲", name: { en: "Random Topic", he: "נושא אקראי" } },
+  { id: "soccer", emoji: "⚽", name: { en: "Soccer Trivia", he: "כדורגל" } },
+  { id: "animals", emoji: "🐬", name: { en: "Animals & Ocean", he: "חיות ואוקיינוס" } },
+  { id: "beauty", emoji: "💅", name: { en: "Beauty & Style", he: "יופי וסטייל" } },
+  { id: "movies", emoji: "🎬", name: { en: "Movies & Shows", he: "סרטים וסדרות" } },
+  { id: "money", emoji: "💰", name: { en: "Money & Business", he: "כסף ועסקים" } },
+  { id: "science", emoji: "🔬", name: { en: "Science Wow Facts", he: "עובדות מדע מדהימות" } },
+  { id: "family", emoji: "😂", name: { en: "Family & Funny Moments", he: "משפחה ורגעים מצחיקים" } },
+  { id: "geography", emoji: "🗺️", name: { en: "Countries & Famous Places", he: "מדינות ומקומות מפורסמים" } },
+  { id: "survival", emoji: "🏕️", name: { en: "Survival Trivia", he: "הישרדות" } },
+  { id: "logic", emoji: "🧠", name: { en: "Logic & Brain Teasers", he: "היגיון וחידות" } },
+  { id: "usa", emoji: "🇺🇸", name: { en: "USA Trivia", he: "ארצות הברית" } },
+  { id: "math", emoji: "➗", name: { en: "Math", he: "מתמטיקה" } },
+  { id: "mexico", emoji: "🇲🇽", name: { en: "Mexico / Spanish Trivia", he: "מקסיקו / ספרדית" } },
+  { id: "dance", emoji: "🎵", name: { en: "Dance & Music", he: "ריקוד ומוזיקה" } },
+  { id: "fortnite", emoji: "🎮", name: { en: "Fortnite Trivia", he: "פורטנייט" } },
 ];
+
+// Just the topic name in the given language (no emoji).
+export function topicName(topic, lang = "en") {
+  return (topic.name && (topic.name[lang] || topic.name.en)) || topic.id;
+}
+
+// Emoji + name, e.g. "⚽ Soccer Trivia" / "⚽ כדורגל".
+export function topicLabel(topic, lang = "en") {
+  return `${topic.emoji} ${topicName(topic, lang)}`;
+}
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
 
@@ -45,8 +67,9 @@ function getRandomTopicId() {
 }
 
 // Turn a raw bank entry into a game-ready question with shuffled answers.
-function prepareQuestion(raw, topicId, difficulty) {
-  const label = TOPICS.find((t) => t.id === topicId)?.label || topicId;
+function prepareQuestion(raw, topicId, difficulty, lang) {
+  const topic = TOPICS.find((t) => t.id === topicId);
+  const label = topic ? topicLabel(topic, lang) : topicId;
   const correctAnswer = raw.answers[raw.correctIndex];
   const answers = shuffle(raw.answers);
   return {
@@ -61,12 +84,14 @@ function prepareQuestion(raw, topicId, difficulty) {
 }
 
 // generateQuestions stays async so callers (Lobby) don't need to change.
-export async function generateQuestions(selectedTopicIds, difficulty, count = 20) {
+export async function generateQuestions(selectedTopicIds, difficulty, count = 20, lang = "en") {
+  const bank = getBank(lang);
+
   // Resolve "random" picks into real topics, keep only topics we actually have.
   let topics = (selectedTopicIds || []).map((id) =>
     id === "random" ? getRandomTopicId() : id
   );
-  topics = [...new Set(topics)].filter((t) => questionBank[t]);
+  topics = [...new Set(topics)].filter((t) => bank[t]);
   if (topics.length === 0) topics = [getRandomTopicId()];
 
   const diff = DIFFICULTIES.includes(difficulty) ? difficulty : "medium";
@@ -75,7 +100,7 @@ export async function generateQuestions(selectedTopicIds, difficulty, count = 20
   const seen = new Set();
   const pool = [];
   const addPool = (topicId, d) => {
-    const arr = questionBank[topicId]?.[d] || [];
+    const arr = bank[topicId]?.[d] || [];
     for (const q of arr) {
       if (seen.has(q.question)) continue;
       seen.add(q.question);
@@ -93,14 +118,14 @@ export async function generateQuestions(selectedTopicIds, difficulty, count = 20
   }
   // Priority 3: any topic at the chosen difficulty, then anything at all.
   if (pool.length < count) {
-    Object.keys(questionBank).forEach((t) => addPool(t, diff));
+    Object.keys(bank).forEach((t) => addPool(t, diff));
   }
   if (pool.length < count) {
-    Object.keys(questionBank).forEach((t) =>
+    Object.keys(bank).forEach((t) =>
       DIFFICULTIES.forEach((d) => addPool(t, d))
     );
   }
 
   const chosen = shuffle(pool).slice(0, count);
-  return chosen.map((item) => prepareQuestion(item.raw, item.topicId, item.difficulty));
+  return chosen.map((item) => prepareQuestion(item.raw, item.topicId, item.difficulty, lang));
 }

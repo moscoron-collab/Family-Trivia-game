@@ -1,29 +1,34 @@
 import React, { useState, useEffect, useRef } from "react";
-import { generateQuestions, TOPICS } from "../services/questionService";
+import { generateQuestions, TOPICS, topicName } from "../services/questionService";
 import {
   sendChatMessage,
   voteTopics,
   voteDifficulty,
   computeMajorityDifficulty,
   computeTopTopics,
+  setRoomLanguage,
 } from "../firebase/room";
+import { useLang, useT } from "../i18n.jsx";
+import LanguageToggle from "./LanguageToggle";
 
 const MAX_TOPICS = 4;
 const DIFFICULTY_OPTIONS = [
-  { id: "easy", label: "Easy", emoji: "😊", desc: "Ages 6-10" },
-  { id: "medium", label: "Medium", emoji: "🤔", desc: "Ages 11-16" },
-  { id: "hard", label: "Hard", emoji: "🔥", desc: "Adult level" },
+  { id: "easy", emoji: "😊" },
+  { id: "medium", emoji: "🤔" },
+  { id: "hard", emoji: "🔥" },
 ];
+const DIFF_LABEL_KEY = { easy: "diffEasy", medium: "diffMedium", hard: "diffHard" };
+const DIFF_DESC_KEY = { easy: "diffEasyDesc", medium: "diffMediumDesc", hard: "diffHardDesc" };
 
 export default function Lobby({ room, code, player, onStartGame }) {
+  const { lang } = useLang();
+  const tr = useT();
   const [myTopics, setMyTopics] = useState([]);
   const [myDifficulty, setMyDifficulty] = useState(null);
   const [chatMsg, setChatMsg] = useState("");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
-  const [diffCountdown, setDiffCountdown] = useState(null);
   const chatEndRef = useRef(null);
-  const diffTimerRef = useRef(null);
 
   const players = Object.values(room.players || {}).filter((p) => p.status !== "quit");
   const chat = Object.values(room.chat || {}).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -34,15 +39,6 @@ export default function Lobby({ room, code, player, onStartGame }) {
   const computedDifficulty = computeMajorityDifficulty(diffVotes);
 
   const allVotedDiff = players.length > 0 && players.every((p) => diffVotes[p.uid]);
-  const hasEnoughSetup = computedTopics.length > 0 && (computedDifficulty || allVotedDiff);
-
-  // Auto-select medium after 90s if not all voted
-  useEffect(() => {
-    if (players.length >= 2 && !allVotedDiff && myDifficulty) {
-      const timer = setTimeout(() => {}, 90000);
-      return () => clearTimeout(timer);
-    }
-  }, [allVotedDiff, players.length, myDifficulty]);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -91,7 +87,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
 
     const finalTopics = computedTopics.length > 0 ? computedTopics : myTopics;
     if (finalTopics.length === 0) {
-      setError("Please select at least one topic first!");
+      setError(tr("errPickTopic"));
       return;
     }
 
@@ -99,17 +95,16 @@ export default function Lobby({ room, code, player, onStartGame }) {
     setStarting(true);
 
     try {
-      const questions = await generateQuestions(finalTopics, finalDifficulty, 20);
-      console.log(`✅ Generated ${questions.length} questions. First:`, questions[0]?.question);
+      const questions = await generateQuestions(finalTopics, finalDifficulty, 20, lang);
       if (questions.length === 0) {
-        setError("No questions generated. Please try again.");
+        setError(tr("errNoQuestions"));
         setStarting(false);
         return;
       }
       await onStartGame(questions, finalDifficulty, finalTopics);
     } catch (err) {
       console.error("Start game error:", err);
-      setError(`Error: ${err.message}. Please try again.`);
+      setError(`${err.message}`);
       setStarting(false);
     }
   };
@@ -125,6 +120,8 @@ export default function Lobby({ room, code, player, onStartGame }) {
   const diffVoteCounts = { easy: 0, medium: 0, hard: 0 };
   Object.values(diffVotes).forEach((d) => { if (diffVoteCounts[d] !== undefined) diffVoteCounts[d]++; });
 
+  const voteWord = (n) => (n > 1 ? tr("votes") : tr("vote"));
+
   return (
     <div className="app-container">
       <div className="bg-glow" />
@@ -133,13 +130,16 @@ export default function Lobby({ room, code, player, onStartGame }) {
         {/* Header */}
         <div className="row row-between mb-md">
           <div>
-            <h3 className="text-gradient">Family Trivia Battle</h3>
-            <p className="text-xs text-muted">Lobby • Waiting to start</p>
+            <h3 className="text-gradient">{tr("lobbyTitle")}</h3>
+            <p className="text-xs text-muted">{tr("lobbySubtitle")}</p>
           </div>
-          <div className="room-code" style={{ padding: "0.5rem 1rem" }}>
-            <div>
-              <div className="room-code-label">Room</div>
-              <div className="room-code-value" style={{ fontSize: "1.25rem" }}>{code}</div>
+          <div className="row gap-sm">
+            <LanguageToggle onChange={(l) => setRoomLanguage(code, l)} />
+            <div className="room-code" style={{ padding: "0.5rem 1rem" }}>
+              <div>
+                <div className="room-code-label">{tr("room")}</div>
+                <div className="room-code-value" style={{ fontSize: "1.25rem" }}>{code}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -147,8 +147,8 @@ export default function Lobby({ room, code, player, onStartGame }) {
         {/* Players in room */}
         <div className="card mb-md">
           <div className="row row-between mb-sm">
-            <h4>Players ({players.length}/10)</h4>
-            <span className="badge badge-green">● Live</span>
+            <h4>{tr("players")} ({players.length}/10)</h4>
+            <span className="badge badge-green">{tr("live")}</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
             {players.map((p) => (
@@ -157,7 +157,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
                   {p.name[0].toUpperCase()}
                 </div>
                 <span style={{ color: p.uid === player.uid ? p.color : "var(--text-primary)" }}>
-                  {p.name} {p.uid === player.uid ? "(you)" : ""}
+                  {p.name} {p.uid === player.uid ? tr("you") : ""}
                 </span>
               </div>
             ))}
@@ -166,12 +166,12 @@ export default function Lobby({ room, code, player, onStartGame }) {
 
         {/* Chat */}
         <div className="mb-md">
-          <h4 className="mb-sm">💬 Room Chat</h4>
+          <h4 className="mb-sm">{tr("roomChat")}</h4>
           <div className="chat-container">
             <div className="chat-messages">
               {chat.length === 0 && (
                 <p className="text-xs text-muted text-center" style={{ marginTop: "0.5rem" }}>
-                  Chat about topics, difficulty, or just say hi! 👋
+                  {tr("chatEmpty")}
                 </p>
               )}
               {chat.map((msg, i) => (
@@ -188,12 +188,12 @@ export default function Lobby({ room, code, player, onStartGame }) {
               <input
                 id="chat-input"
                 className="chat-input"
-                placeholder="Type a message..."
+                placeholder={tr("typeMessage")}
                 value={chatMsg}
                 onChange={(e) => setChatMsg(e.target.value)}
                 maxLength={100}
               />
-              <button id="btn-send-chat" type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>Send</button>
+              <button id="btn-send-chat" type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>{tr("send")}</button>
             </form>
           </div>
         </div>
@@ -201,8 +201,8 @@ export default function Lobby({ room, code, player, onStartGame }) {
         {/* Topic Selection */}
         <div className="mb-md">
           <div className="row row-between mb-sm">
-            <h4>📚 Topics (pick up to 4)</h4>
-            <button id="btn-pick-all" className="btn btn-secondary btn-sm" onClick={handlePickAll}>Pick All</button>
+            <h4>{tr("topicsTitle")}</h4>
+            <button id="btn-pick-all" className="btn btn-secondary btn-sm" onClick={handlePickAll}>{tr("pickAll")}</button>
           </div>
 
           {/* Top voted topics display */}
@@ -211,7 +211,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
               {computedTopics.map((tid) => {
                 const t = TOPICS.find((x) => x.id === tid);
                 return t ? (
-                  <span key={tid} className="badge badge-purple">{t.emoji} {t.label.replace(/^[^\s]+ /, "")}</span>
+                  <span key={tid} className="badge badge-purple">{t.emoji} {topicName(t, lang)}</span>
                 ) : null;
               })}
             </div>
@@ -230,10 +230,10 @@ export default function Lobby({ room, code, player, onStartGame }) {
                   onClick={() => !isDisabled && handleTopicToggle(topic.id)}
                 >
                   <span className="topic-emoji">{topic.emoji}</span>
-                  <span className="topic-label">{topic.label.replace(/^[^\s]+ /, "")}</span>
+                  <span className="topic-label">{topicName(topic, lang)}</span>
                   {voteCount > 0 && (
                     <span className="badge badge-purple" style={{ marginTop: "0.25rem", fontSize: "0.6rem" }}>
-                      {voteCount} vote{voteCount > 1 ? "s" : ""}
+                      {voteCount} {voteWord(voteCount)}
                     </span>
                   )}
                 </div>
@@ -241,13 +241,13 @@ export default function Lobby({ room, code, player, onStartGame }) {
             })}
           </div>
           <p className="text-xs text-muted mt-sm">
-            You selected: {myTopics.length}/4 topics
+            {tr("youSelected", { n: myTopics.length })}
           </p>
         </div>
 
         {/* Difficulty */}
         <div className="mb-md">
-          <h4 className="mb-sm">⚡ Difficulty</h4>
+          <h4 className="mb-sm">{tr("difficulty")}</h4>
 
           {players.length === 2 && !allVotedDiff && (
             <div className="hourglass-container mb-sm">
@@ -264,11 +264,11 @@ export default function Lobby({ room, code, player, onStartGame }) {
                 onClick={() => handleDifficultyVote(d.id)}
               >
                 <div style={{ fontSize: "1.25rem" }}>{d.emoji}</div>
-                <div style={{ fontWeight: 700, fontSize: "0.875rem" }}>{d.label}</div>
-                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{d.desc}</div>
+                <div style={{ fontWeight: 700, fontSize: "0.875rem" }}>{tr(DIFF_LABEL_KEY[d.id])}</div>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{tr(DIFF_DESC_KEY[d.id])}</div>
                 {diffVoteCounts[d.id] > 0 && (
                   <div className="badge badge-yellow mt-sm" style={{ margin: "0.25rem auto 0", fontSize: "0.6rem" }}>
-                    {diffVoteCounts[d.id]} vote{diffVoteCounts[d.id] > 1 ? "s" : ""}
+                    {diffVoteCounts[d.id]} {voteWord(diffVoteCounts[d.id])}
                   </div>
                 )}
               </button>
@@ -277,7 +277,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
 
           {computedDifficulty && (
             <p className="text-xs text-muted mt-sm">
-              Room vote: <strong style={{ color: "var(--accent-yellow)" }}>{computedDifficulty}</strong>
+              {tr("roomVote", { v: tr(DIFF_LABEL_KEY[computedDifficulty]) })}
             </p>
           )}
         </div>
@@ -297,11 +297,11 @@ export default function Lobby({ room, code, player, onStartGame }) {
           disabled={starting || (myTopics.length === 0 && computedTopics.length === 0)}
           style={{ marginBottom: "2rem" }}
         >
-          {starting ? "⏳ Generating questions..." : "🚀 Start Game!"}
+          {starting ? tr("generating") : tr("startGame")}
         </button>
 
         <p className="text-xs text-muted text-center mb-lg">
-          Any player can start the game once topics and difficulty are selected.
+          {tr("anyoneStart")}
         </p>
       </div>
     </div>
@@ -309,6 +309,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
 }
 
 function DifficultyCountdown({ seconds, computedDiff }) {
+  const tr = useT();
   const [remaining, setRemaining] = useState(seconds);
   useEffect(() => {
     if (computedDiff) return;
@@ -325,7 +326,7 @@ function DifficultyCountdown({ seconds, computedDiff }) {
       <div className="hourglass">⏳</div>
       <div className="hourglass-time">{remaining}s</div>
       <p className="text-xs text-muted">
-        {remaining > 0 ? `Auto-selects Medium in ${remaining}s if no agreement` : "Defaulting to Medium..."}
+        {remaining > 0 ? tr("autoMedium", { n: remaining }) : tr("autoMediumNow")}
       </p>
     </div>
   );

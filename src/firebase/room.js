@@ -20,7 +20,7 @@ export function generateRoomCode() {
 }
 
 // Create a new room
-export async function createRoom(hostPlayer) {
+export async function createRoom(hostPlayer, lang = "en") {
   let code;
   let attempts = 0;
   // Ensure unique room code
@@ -40,6 +40,7 @@ export async function createRoom(hostPlayer) {
       difficulty: null,
       topicVotes: {},
       difficultyVotes: {},
+      language: lang,
     },
     players: {
       [hostPlayer.uid]: {
@@ -118,6 +119,11 @@ export async function voteDifficulty(code, uid, difficulty) {
   await update(ref(db, `rooms/${code}/settings/difficultyVotes`), {
     [uid]: difficulty,
   });
+}
+
+// Set the room's language (shared by everyone in the room)
+export async function setRoomLanguage(code, lang) {
+  await update(ref(db, `rooms/${code}/settings`), { language: lang });
 }
 
 // Compute majority difficulty from votes

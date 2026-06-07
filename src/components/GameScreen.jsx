@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { sounds } from "../services/sounds";
+import { useT } from "../i18n.jsx";
 
 const QUESTION_TIME = 15; // seconds
+const DIFF_LABEL_KEY = { easy: "diffEasy", medium: "diffMedium", hard: "diffHard" };
 
 export default function GameScreen({ room, code, player, myData, onSubmitAnswer, onFinish, onQuit }) {
+  const tr = useT();
   // Firebase RTDB may return arrays as objects — normalize both questions and answers
   const toArray = (val) => {
     if (!val) return [];
@@ -114,22 +117,22 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
         <div className="bg-glow" />
         <div className="page-center animate-fade-in" style={{ zIndex: 1, position: "relative", textAlign: "center", gap: "1.25rem" }}>
           <div style={{ fontSize: "4rem" }}>🎉</div>
-          <h2 className="text-gradient">You're done!</h2>
+          <h2 className="text-gradient">{tr("youreDone")}</h2>
           <p className="text-secondary">
             {stillPlaying.length > 0
-              ? `Waiting for ${stillPlaying.map((p) => p.name).join(", ")}...`
-              : "Results coming up!"}
+              ? tr("waitingFor", { names: stillPlaying.map((p) => p.name).join(", ") })
+              : tr("resultsComing")}
           </p>
 
           {stillPlaying.length > 0 && (
             <div className="card" style={{ width: "100%", maxWidth: 340 }}>
-              <h4 className="mb-sm">Live Status</h4>
+              <h4 className="mb-sm">{tr("liveStatus")}</h4>
               <LiveStatus players={players} myUid={player.uid} questions={questions} />
             </div>
           )}
 
           <div className="card-glass" style={{ maxWidth: 340, padding: "0.875rem 1.25rem" }}>
-            <p className="text-sm text-secondary">Your Score</p>
+            <p className="text-sm text-secondary">{tr("yourScore")}</p>
             <p style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--accent-purple-light)" }}>
               {myData?.score || 0}
             </p>
@@ -145,11 +148,11 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
       <div className="app-container">
         <div className="bg-glow" />
         <div className="page-center animate-fade-in" style={{ zIndex: 1, position: "relative", textAlign: "center", gap: "1.5rem" }}>
-          <p style={{ fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontSize: "0.9rem", color: "var(--text-secondary)" }}>Get Ready!</p>
-          <h2 className="text-gradient">Game starts in</h2>
+          <p style={{ fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontSize: "0.9rem", color: "var(--text-secondary)" }}>{tr("getReady")}</p>
+          <h2 className="text-gradient">{tr("gameStartsIn")}</h2>
           <div className="countdown-display">{countdownLeft}</div>
           <div className="card-glass" style={{ maxWidth: 320, padding: "1rem 1.5rem" }}>
-            <p className="text-sm text-secondary">🧠 Each correct answer earns up to <strong style={{ color: "var(--accent-yellow)" }}>6 points</strong> based on speed and difficulty.</p>
+            <p className="text-sm text-secondary">{tr("pointsHint")}</p>
           </div>
         </div>
       </div>
@@ -162,7 +165,7 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
         <div className="bg-glow" />
         <div className="page-center" style={{ zIndex: 1, position: "relative", textAlign: "center", gap: "1rem" }}>
           <div style={{ fontSize: "3rem" }}>⏳</div>
-          <h3>Loading questions...</h3>
+          <h3>{tr("loadingQuestions")}</h3>
           <p className="text-muted text-sm">Questions: {questions.length} | Index: {currentIndex}</p>
         </div>
       </div>
@@ -178,7 +181,7 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
         <div className="row row-between mb-sm">
           <div className="question-header" style={{ flex: 1 }}>
             <span className="question-progress">
-              Q{currentIndex + 1} / {questions.length}
+              {tr("question", { n: currentIndex + 1, total: questions.length })}
             </span>
             <span className="question-topic-badge">{currentQuestion.topic}</span>
           </div>
@@ -188,7 +191,7 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
             style={{ marginLeft: "0.5rem" }}
             onClick={() => setShowQuitConfirm(true)}
           >
-            Quit
+            {tr("quit")}
           </button>
         </div>
 
@@ -205,9 +208,9 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
 
         {/* Score */}
         <div className="row row-between mb-md" style={{ padding: "0.5rem 0.75rem", background: "var(--bg-glass)", borderRadius: "var(--radius-md)" }}>
-          <span className="text-xs text-muted">Your Score</span>
+          <span className="text-xs text-muted">{tr("yourScore")}</span>
           <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--accent-purple-light)" }}>
-            {myData?.score || 0} pts
+            {myData?.score || 0} {tr("pts")}
           </span>
         </div>
 
@@ -240,7 +243,10 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
         {/* Difficulty badge */}
         <div className="text-center mb-md">
           <span className={`badge ${currentQuestion.difficulty === "easy" ? "badge-green" : currentQuestion.difficulty === "medium" ? "badge-yellow" : "badge-red"}`}>
-            {currentQuestion.difficulty} • up to {currentQuestion.difficulty === "easy" ? 3 : currentQuestion.difficulty === "medium" ? 5 : 6} pts
+            {tr("upToPts", {
+              diff: tr(DIFF_LABEL_KEY[currentQuestion.difficulty] || "diffMedium"),
+              n: currentQuestion.difficulty === "easy" ? 3 : currentQuestion.difficulty === "medium" ? 5 : 6,
+            })}
           </span>
         </div>
       </div>
@@ -253,13 +259,13 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
         }}>
           <div className="card animate-scale-in" style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🚪</div>
-            <h3 className="mb-sm">Quit Game?</h3>
+            <h3 className="mb-sm">{tr("quitTitle")}</h3>
             <p className="text-sm text-muted mb-md">
-              You'll leave with your current score. The game continues for everyone else.
+              {tr("quitBody")}
             </p>
             <div className="stack stack-sm">
-              <button id="btn-confirm-quit" className="btn btn-danger btn-full" onClick={onQuit}>Yes, quit</button>
-              <button className="btn btn-secondary btn-full" onClick={() => setShowQuitConfirm(false)}>Keep playing</button>
+              <button id="btn-confirm-quit" className="btn btn-danger btn-full" onClick={onQuit}>{tr("quitYes")}</button>
+              <button className="btn btn-secondary btn-full" onClick={() => setShowQuitConfirm(false)}>{tr("quitKeep")}</button>
             </div>
           </div>
         </div>
@@ -269,6 +275,7 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
 }
 
 function LiveStatus({ players, myUid, questions, mini }) {
+  const tr = useT();
   const total = questions.length;
   return (
     <div className={`live-status ${mini ? "mb-sm" : ""}`} style={mini ? { padding: "0.5rem 0.625rem" } : {}}>
@@ -281,8 +288,8 @@ function LiveStatus({ players, myUid, questions, mini }) {
             <span style={{ color: p.uid === myUid ? p.color : "var(--text-secondary)", fontWeight: p.uid === myUid ? 700 : 400 }}>
               {p.name}
             </span>
-            <span className="text-xs text-muted" style={{ marginLeft: "auto" }}>
-              {p.status === "finished" ? "✅ Done" : p.status === "quit" ? "🚪 Left" : `Q${Math.min((p.questionIndex || 0) + 1, total)}/${total}`}
+            <span className="text-xs text-muted" style={{ marginInlineStart: "auto" }}>
+              {p.status === "finished" ? tr("done") : p.status === "quit" ? tr("left") : `${Math.min((p.questionIndex || 0) + 1, total)}/${total}`}
             </span>
             {!mini && (
               <div style={{ width: "40px", height: "3px", background: "var(--bg-glass)", borderRadius: "2px", overflow: "hidden", marginLeft: "0.5rem" }}>

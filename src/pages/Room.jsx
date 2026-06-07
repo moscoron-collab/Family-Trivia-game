@@ -15,6 +15,7 @@ import {
   resetRoom,
 } from "../firebase/room";
 import { generateQuestions, TOPICS } from "../services/questionService";
+import { useLang, useT } from "../i18n.jsx";
 
 // Sub-components
 import Lobby from "../components/Lobby";
@@ -25,11 +26,19 @@ import Countdown from "../components/Countdown";
 export default function Room() {
   const { code } = useParams();
   const navigate = useNavigate();
+  const { lang, setLang } = useLang();
+  const tr = useT();
   const [player, setPlayer] = useState(null);
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const unsubRef = useRef(null);
+
+  // Adopt the room's chosen language so everyone in the room matches.
+  useEffect(() => {
+    const roomLang = room?.settings?.language;
+    if (roomLang && roomLang !== lang) setLang(roomLang);
+  }, [room?.settings?.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const stored = sessionStorage.getItem("player");
@@ -43,7 +52,7 @@ export default function Room() {
     // Subscribe to room
     const unsub = subscribeToRoom(code, (data) => {
       if (!data) {
-        setError("Room not found or has expired.");
+        setError(tr("roomNotFound"));
         setLoading(false);
         return;
       }
@@ -61,7 +70,7 @@ export default function Room() {
         <div className="bg-glow" />
         <div className="page-center" style={{ zIndex: 1, position: "relative" }}>
           <div className="logo-icon" style={{ fontSize: "3rem" }}>🏆</div>
-          <p className="text-secondary mt-md">Connecting to room {code}...</p>
+          <p className="text-secondary mt-md">{tr("connecting", { code })}</p>
         </div>
       </div>
     );
@@ -74,7 +83,7 @@ export default function Room() {
         <div className="page-center" style={{ zIndex: 1, position: "relative", textAlign: "center" }}>
           <div style={{ fontSize: "3rem" }}>😕</div>
           <h3 className="mt-md">{error}</h3>
-          <button className="btn btn-primary mt-lg" onClick={() => navigate("/")}>Go Home</button>
+          <button className="btn btn-primary mt-lg" onClick={() => navigate("/")}>{tr("goHome")}</button>
         </div>
       </div>
     );
