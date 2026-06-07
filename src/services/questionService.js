@@ -8,10 +8,7 @@
 //   player can read it in their own language in the same game.
 // ============================================================
 
-import questionBank from "../data/questionBank";
-import questionBankHe from "../data/questionBankHe";
-
-const BANKS = { en: questionBank, he: questionBankHe };
+import questionBank from "../data/bank";
 
 // Topics carry both an English and a Hebrew name + a shared emoji.
 export const TOPICS = [
@@ -67,20 +64,19 @@ function getRandomTopicId() {
 // The answer order (and therefore correctIndex) is shared, so scoring is
 // identical no matter which language a player is reading.
 function buildQuestion(topicId, difficulty, qIndex) {
-  const enRaw = questionBank[topicId][difficulty][qIndex];
-  const heRaw = questionBankHe[topicId]?.[difficulty]?.[qIndex] || enRaw;
+  const entry = questionBank[topicId][difficulty][qIndex];
   const order = shuffle([0, 1, 2, 3]);
-  const localize = (raw) => ({
-    question: raw.question,
-    answers: order.map((k) => raw.answers[k]),
-    explanation: raw.explanation || "",
+  const localize = (side) => ({
+    question: side.question,
+    answers: order.map((k) => side.answers[k]),
+    explanation: side.explanation || "",
   });
   return {
     topicId,
     difficulty,
-    correctIndex: order.indexOf(enRaw.correctIndex), // correctIndex is 0 in the bank
-    en: localize(enRaw),
-    he: localize(heRaw),
+    correctIndex: order.indexOf(entry.correctIndex ?? 0),
+    en: localize(entry.en),
+    he: localize(entry.he || entry.en),
   };
 }
 
@@ -102,8 +98,9 @@ export async function generateQuestions(selectedTopicIds, difficulty, count = 20
   const addPool = (topicId, d) => {
     const arr = questionBank[topicId]?.[d] || [];
     arr.forEach((q, qIndex) => {
-      if (seen.has(q.question)) return;
-      seen.add(q.question);
+      const key = (q.en && q.en.question) || `${topicId}:${d}:${qIndex}`;
+      if (seen.has(key)) return;
+      seen.add(key);
       pool.push({ topicId, difficulty: d, qIndex });
     });
   };
