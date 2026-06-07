@@ -294,7 +294,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
           id="btn-start-game"
           className="btn btn-primary btn-full btn-lg"
           onClick={handleStartGame}
-          disabled={starting || myTopics.length === 0 || !myDifficulty}
+          disabled={starting || (myTopics.length === 0 && computedTopics.length === 0)}
           style={{ marginBottom: "2rem" }}
         >
           {starting ? "⏳ Generating questions..." : "🚀 Start Game!"}

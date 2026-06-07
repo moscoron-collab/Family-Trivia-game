@@ -78,9 +78,11 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
   const handleAnswerRef = useRef(handleAnswer);
   useEffect(() => { handleAnswerRef.current = handleAnswer; });
 
-  // Timer resets when questionKey changes (not on every Firebase re-render)
+  // Timer resets when questionKey changes (not on every Firebase re-render).
+  // Don't run while the 10s countdown overlay is showing, otherwise the
+  // question clock ticks down before the player can even see the question.
   useEffect(() => {
-    if (isFinished) return;
+    if (isFinished || countdownLeft > 0) return;
     clearInterval(timerRef.current);
     setTimeLeft(QUESTION_TIME);
     startTimeRef.current = Date.now();
@@ -99,7 +101,7 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [questionKey, isFinished]); // questionKey increments only when truly moving to next Q
+  }, [questionKey, isFinished, countdownLeft]); // (re)start the clock only when a question is actually on screen
 
   const timerPct = (timeLeft / QUESTION_TIME) * 100;
   const timerClass = timeLeft > 10 ? "safe" : timeLeft > 5 ? "warn" : "danger";
