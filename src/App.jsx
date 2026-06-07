@@ -8,7 +8,7 @@ import Gate from "./components/Gate";
 import "./index.css";
 
 // Family passcode. Change it by setting VITE_GATE_CODE, or just tell me a new one.
-const GATE_CODE = import.meta.env.VITE_GATE_CODE || "trivia26";
+const GATE_CODE = import.meta.env.VITE_GATE_CODE || "1948";
 
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => {
