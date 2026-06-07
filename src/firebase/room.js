@@ -289,7 +289,7 @@ export async function resetRoom(code) {
 // ============================================================
 // Long-term player stats (persisted per uid under /stats)
 // ============================================================
-export async function recordGameResult(uid, { score = 0, isWin = false, difficulty, answers } = {}) {
+export async function recordGameResult(uid, { score = 0, isWin = false, difficulty, answers, qids } = {}) {
   if (!uid) return;
   const statsRef = ref(db, `stats/${uid}`);
   const snap = await get(statsRef);
@@ -309,6 +309,11 @@ export async function recordGameResult(uid, { score = 0, isWin = false, difficul
     s.byTopic[tid].total += 1;
     if (a.isCorrect) s.byTopic[tid].correct += 1;
   });
+  // Remember which questions this player has now seen (for the no-repeat logic).
+  if (qids && qids.length) {
+    s.seen = s.seen || {};
+    qids.forEach((q) => { if (q) s.seen[q] = true; });
+  }
   s.lastPlayed = Date.now();
   await set(statsRef, s);
 }
@@ -317,6 +322,20 @@ export async function getStats(uid) {
   if (!uid) return null;
   const snap = await get(ref(db, `stats/${uid}`));
   return snap.val() || null;
+}
+
+// Union of the question ids already seen by the given players.
+export async function getSeenUnion(uids) {
+  const set = new Set();
+  for (const uid of uids || []) {
+    if (!uid) continue;
+    try {
+      const snap = await get(ref(db, `stats/${uid}/seen`));
+      const v = snap.val();
+      if (v) Object.keys(v).forEach((k) => set.add(k));
+    } catch {}
+  }
+  return set;
 }
 
 // Subscribe to room changes (returns unsubscribe function)

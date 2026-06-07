@@ -43,6 +43,7 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
+  const finishedRef = useRef(false);
 
   const players = Object.values(room.players || {});
   const activePlayers = players.filter((p) => p.status !== "quit");
@@ -65,19 +66,31 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
     sounds.select();
 
     const elapsed = Date.now() - startTimeRef.current;
-    await onSubmitAnswer(currentIndex, answerIndex, elapsed);
+    try {
+      await onSubmitAnswer(currentIndex, answerIndex, elapsed);
+    } catch (e) {
+      console.error("submit answer failed", e);
+    }
 
     setTimeout(() => {
-      if (currentIndex + 1 >= questions.length) {
-        onFinish();
-      } else {
+      if (currentIndex + 1 < questions.length) {
         setAnswered(false);
         setSelectedAnswer(null);
         setTimeLeft(QUESTION_TIME);
         setQuestionKey(k => k + 1); // ← triggers timer to restart
       }
+      // Last question: finishing is handled by the effect below once we pass the end.
     }, 600);
-  }, [answered, currentQuestion, currentIndex, questions.length, onSubmitAnswer, onFinish]);
+  }, [answered, currentQuestion, currentIndex, questions.length, onSubmitAnswer]);
+
+  // Safety net: once we've answered past the last question, finish the game
+  // exactly once — so we never get stuck on a "Loading questions…" screen.
+  useEffect(() => {
+    if (!isFinished && questions.length > 0 && currentIndex >= questions.length && !finishedRef.current) {
+      finishedRef.current = true;
+      onFinish();
+    }
+  }, [currentIndex, questions.length, isFinished, onFinish]);
 
   // Keep a ref so the timer callback always calls the latest handleAnswer
   const handleAnswerRef = useRef(handleAnswer);

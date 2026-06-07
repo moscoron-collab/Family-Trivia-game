@@ -132,6 +132,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
       isWin,
       difficulty: room.settings?.difficulty,
       answers: myData.answers || {},
+      qids: questions.map((q) => q && q.qid).filter(Boolean),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

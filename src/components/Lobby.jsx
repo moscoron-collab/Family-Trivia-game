@@ -6,6 +6,7 @@ import {
   voteDifficulty,
   computeMajorityDifficulty,
   computeTopTopics,
+  getSeenUnion,
 } from "../firebase/room";
 import { useLang, useT } from "../i18n.jsx";
 import LanguageToggle from "./LanguageToggle";
@@ -96,7 +97,10 @@ export default function Lobby({ room, code, player, onStartGame }) {
     setStarting(true);
 
     try {
-      const questions = await generateQuestions(finalTopics, finalDifficulty, 20);
+      // Skip questions everyone in the room has already seen (until exhausted).
+      let excludeQids = new Set();
+      try { excludeQids = await getSeenUnion(players.map((p) => p.uid)); } catch {}
+      const questions = await generateQuestions(finalTopics, finalDifficulty, 20, excludeQids);
       if (questions.length === 0) {
         setError(tr("errNoQuestions"));
         setStarting(false);

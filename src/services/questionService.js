@@ -60,6 +60,14 @@ function getRandomTopicId() {
   return real[Math.floor(Math.random() * real.length)].id;
 }
 
+// Stable short id for a question (used to remember which ones a player has seen).
+export function makeQid(text) {
+  let h = 0;
+  const s = String(text || "");
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  return "q" + (h >>> 0).toString(36);
+}
+
 // Build one game-ready question that contains BOTH languages.
 // The answer order (and therefore correctIndex) is shared, so scoring is
 // identical no matter which language a player is reading.
@@ -74,6 +82,7 @@ function buildQuestion(topicId, difficulty, qIndex) {
   return {
     topicId,
     difficulty,
+    qid: makeQid(entry.en.question),
     correctIndex: order.indexOf(entry.correctIndex ?? 0),
     en: localize(entry.en),
     he: localize(entry.he || entry.en),
@@ -82,7 +91,9 @@ function buildQuestion(topicId, difficulty, qIndex) {
 
 // Pick the questions for a game. Returns language-neutral, bilingual question
 // objects (stays async so callers don't need to change).
-export async function generateQuestions(selectedTopicIds, difficulty, count = 20) {
+// `excludeQids` (a Set of question ids the players have already seen) is used to
+// avoid repeats until the pool is exhausted.
+export async function generateQuestions(selectedTopicIds, difficulty, count = 20, excludeQids = null) {
   // Resolve "random" picks; keep only topics we have.
   let topics = (selectedTopicIds || []).map((id) =>
     id === "random" ? getRandomTopicId() : id
@@ -91,32 +102,54 @@ export async function generateQuestions(selectedTopicIds, difficulty, count = 20
   if (topics.length === 0) topics = [getRandomTopicId()];
 
   const diff = DIFFICULTIES.includes(difficulty) ? difficulty : "medium";
+  const ex = excludeQids instanceof Set ? excludeQids : new Set(excludeQids || []);
 
-  // Collect candidate questions (by topic/difficulty/index), de-duplicated.
-  const seen = new Set();
-  const pool = [];
-  const addPool = (topicId, d) => {
-    const arr = questionBank[topicId]?.[d] || [];
-    arr.forEach((q, qIndex) => {
-      const key = (q.en && q.en.question) || `${topicId}:${d}:${qIndex}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      pool.push({ topicId, difficulty: d, qIndex });
-    });
+  // Build candidate tiers in priority order, de-duplicated across all tiers:
+  //   tier1 = chosen topics at the chosen difficulty
+  //   tier2 = chosen topics at other difficulties
+  //   tier3 = every topic / difficulty (last resort)
+  const dedup = new Set();
+  const makeTier = (pairs) => {
+    const tier = [];
+    for (const [topicId, d] of pairs) {
+      const arr = questionBank[topicId]?.[d] || [];
+      arr.forEach((q, qIndex) => {
+        const text = (q.en && q.en.question) || `${topicId}:${d}:${qIndex}`;
+        if (dedup.has(text)) return;
+        dedup.add(text);
+        tier.push({ topicId, difficulty: d, qIndex, qid: makeQid(text) });
+      });
+    }
+    return tier;
   };
+  const tier1 = makeTier(topics.map((t) => [t, diff]));
+  const tier2 = makeTier(DIFFICULTIES.filter((d) => d !== diff).flatMap((d) => topics.map((t) => [t, d])));
+  const tier3 = makeTier(Object.keys(questionBank).flatMap((t) => DIFFICULTIES.map((d) => [t, d])));
+  const tiers = [tier1, tier2, tier3];
 
-  topics.forEach((t) => addPool(t, diff));
-  if (pool.length < count) {
-    DIFFICULTIES.filter((d) => d !== diff).forEach((d) => topics.forEach((t) => addPool(t, d)));
+  const chosen = [];
+  const taken = new Set();
+  // 1) Fresh (unseen) questions, preferring earlier tiers.
+  for (const tier of tiers) {
+    if (chosen.length >= count) break;
+    for (const p of shuffle(tier.filter((x) => !ex.has(x.qid)))) {
+      if (chosen.length >= count) break;
+      if (taken.has(p.qid)) continue;
+      taken.add(p.qid);
+      chosen.push(p);
+    }
   }
-  if (pool.length < count) {
-    Object.keys(questionBank).forEach((t) => addPool(t, diff));
-  }
-  if (pool.length < count) {
-    Object.keys(questionBank).forEach((t) => DIFFICULTIES.forEach((d) => addPool(t, d)));
+  // 2) Only if everything has been seen, reuse — again preferring earlier tiers.
+  if (chosen.length < count) {
+    for (const tier of tiers) {
+      if (chosen.length >= count) break;
+      for (const p of shuffle(tier.filter((x) => !taken.has(x.qid)))) {
+        if (chosen.length >= count) break;
+        taken.add(p.qid);
+        chosen.push(p);
+      }
+    }
   }
 
-  return shuffle(pool)
-    .slice(0, count)
-    .map((p) => buildQuestion(p.topicId, p.difficulty, p.qIndex));
+  return chosen.slice(0, count).map((p) => buildQuestion(p.topicId, p.difficulty, p.qIndex));
 }
