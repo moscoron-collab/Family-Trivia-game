@@ -129,6 +129,11 @@ export const UI = {
     showStats: "📊 Show My Stats",
     hideStats: "🔼 Hide My Stats",
     close: "Close",
+    gateTitle: "🔒 Family Access",
+    gatePrompt: "Enter the family passcode to play",
+    gatePlaceholder: "Passcode",
+    gateEnter: "Enter",
+    gateWrong: "Wrong passcode — try again",
   },
   he: {
     // Home
@@ -253,6 +258,11 @@ export const UI = {
     showStats: "📊 הצג סטטיסטיקות",
     hideStats: "🔼 הסתר סטטיסטיקות",
     close: "סגור",
+    gateTitle: "🔒 כניסה למשפחה",
+    gatePrompt: "הזינו את הסיסמה המשפחתית כדי לשחק",
+    gatePlaceholder: "סיסמה",
+    gateEnter: "כניסה",
+    gateWrong: "סיסמה שגויה — נסו שוב",
   },
 };
 
