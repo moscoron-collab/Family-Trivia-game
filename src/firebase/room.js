@@ -286,6 +286,39 @@ export async function resetRoom(code) {
   await update(ref(db), updates);
 }
 
+// ============================================================
+// Long-term player stats (persisted per uid under /stats)
+// ============================================================
+export async function recordGameResult(uid, { score = 0, isWin = false, difficulty, answers } = {}) {
+  if (!uid) return;
+  const statsRef = ref(db, `stats/${uid}`);
+  const snap = await get(statsRef);
+  const s = snap.val() || {};
+  s.games = (s.games || 0) + 1;
+  s.points = (s.points || 0) + (score || 0);
+  if (isWin) s.wins = (s.wins || 0) + 1;
+  s.bestScore = Math.max(s.bestScore || 0, score || 0);
+  if (difficulty) {
+    s.byDifficulty = s.byDifficulty || {};
+    s.byDifficulty[difficulty] = (s.byDifficulty[difficulty] || 0) + 1;
+  }
+  s.byTopic = s.byTopic || {};
+  Object.values(answers || {}).forEach((a) => {
+    const tid = a.topicId || "unknown";
+    if (!s.byTopic[tid]) s.byTopic[tid] = { correct: 0, total: 0 };
+    s.byTopic[tid].total += 1;
+    if (a.isCorrect) s.byTopic[tid].correct += 1;
+  });
+  s.lastPlayed = Date.now();
+  await set(statsRef, s);
+}
+
+export async function getStats(uid) {
+  if (!uid) return null;
+  const snap = await get(ref(db, `stats/${uid}`));
+  return snap.val() || null;
+}
+
 // Subscribe to room changes (returns unsubscribe function)
 export function subscribeToRoom(code, callback) {
   const roomRef = ref(db, `rooms/${code}`);

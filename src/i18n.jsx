@@ -114,6 +114,21 @@ export const UI = {
     connecting: "Connecting to room {code}...",
     roomNotFound: "Room not found or has expired.",
     goHome: "Go Home",
+    // Stats
+    statsTitle: "📊 My Stats",
+    statsGames: "Games",
+    statsPoints: "Points",
+    statsWins: "Wins",
+    statsAvg: "Avg score",
+    statsBest: "Best",
+    statsAccuracy: "Accuracy",
+    statsByDifficulty: "Games by difficulty",
+    statsByTopic: "Topics — strongest to weakest",
+    statsNotPlayed: "Topics not played yet",
+    statsNone: "No games yet — play a round to see your stats!",
+    showStats: "📊 Show My Stats",
+    hideStats: "🔼 Hide My Stats",
+    close: "Close",
   },
   he: {
     // Home
@@ -223,6 +238,21 @@ export const UI = {
     connecting: "מתחבר לחדר {code}...",
     roomNotFound: "החדר לא נמצא או שפג תוקפו.",
     goHome: "חזרה לבית",
+    // Stats
+    statsTitle: "📊 הסטטיסטיקות שלי",
+    statsGames: "משחקים",
+    statsPoints: "נקודות",
+    statsWins: "ניצחונות",
+    statsAvg: "ממוצע",
+    statsBest: "שיא",
+    statsAccuracy: "דיוק",
+    statsByDifficulty: "משחקים לפי רמת קושי",
+    statsByTopic: "נושאים — מהחזק לחלש",
+    statsNotPlayed: "נושאים שטרם שוחקו",
+    statsNone: "עדיין אין משחקים — שחקו סבב כדי לראות סטטיסטיקות!",
+    showStats: "📊 הצג סטטיסטיקות",
+    hideStats: "🔼 הסתר סטטיסטיקות",
+    close: "סגור",
   },
 };
 

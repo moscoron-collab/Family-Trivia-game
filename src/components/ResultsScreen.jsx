@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLang, useT } from "../i18n.jsx";
 import { topicLabelById } from "../services/questionService";
+import { recordGameResult } from "../firebase/room";
+import StatsTable from "./StatsTable";
 
 const FIREWORK_COLORS = ["#7c3aed", "#3b82f6", "#06b6d4", "#ec4899", "#f97316", "#22c55e", "#eab308", "#ef4444"];
 
@@ -33,6 +35,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
   const tr = useT();
   const { lang } = useLang();
   const [showReview, setShowReview] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [playAgainVoted, setPlayAgainVoted] = useState(false);
   const [myVote, setMyVote] = useState(null);
   const [playAgainCountdown, setPlayAgainCountdown] = useState(20);
@@ -115,6 +118,23 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
       onResetRoom();
     }
   }, [playAgainCountdown, myVote]);
+
+  // Record this game into the player's all-time stats (once per game).
+  useEffect(() => {
+    if (!myData) return;
+    const key = `statsRecorded:${code}:${room.gameStartedAt || ""}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {}
+    recordGameResult(player.uid, {
+      score: myData.score || 0,
+      isWin,
+      difficulty: room.settings?.difficulty,
+      answers: myData.answers || {},
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePlayAgain = async (vote) => {
     setPlayAgainVoted(true);
@@ -240,6 +260,21 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* All-time stats */}
+        <button
+          id="btn-toggle-stats"
+          className="btn btn-secondary btn-full mb-md"
+          onClick={() => setShowStats((v) => !v)}
+        >
+          {showStats ? tr("hideStats") : tr("showStats")}
+        </button>
+        {showStats && (
+          <div className="card mb-md animate-fade-in">
+            <h4 className="mb-md">{tr("statsTitle")}</h4>
+            <StatsTable uid={player.uid} />
           </div>
         )}
 

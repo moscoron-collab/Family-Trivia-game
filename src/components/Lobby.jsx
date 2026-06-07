@@ -9,6 +9,7 @@ import {
 } from "../firebase/room";
 import { useLang, useT } from "../i18n.jsx";
 import LanguageToggle from "./LanguageToggle";
+import StatsTable from "./StatsTable";
 
 const MAX_TOPICS = 4;
 const DIFFICULTY_OPTIONS = [
@@ -27,6 +28,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
   const [chatMsg, setChatMsg] = useState("");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [showStats, setShowStats] = useState(false);
   const chatEndRef = useRef(null);
 
   const players = Object.values(room.players || {}).filter((p) => p.status !== "quit");
@@ -133,6 +135,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
             <p className="text-xs text-muted">{tr("lobbySubtitle")}</p>
           </div>
           <div className="row gap-sm">
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowStats(true)} title="stats">📊</button>
             <LanguageToggle />
             <div className="room-code" style={{ padding: "0.5rem 1rem" }}>
               <div>
@@ -303,6 +306,25 @@ export default function Lobby({ room, code, player, onStartGame }) {
           {tr("anyoneStart")}
         </p>
       </div>
+
+      {showStats && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
+          onClick={() => setShowStats(false)}
+        >
+          <div
+            className="card animate-scale-in"
+            style={{ maxWidth: 420, width: "100%", maxHeight: "85vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="row row-between mb-md">
+              <h3>{tr("statsTitle")}</h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowStats(false)}>{tr("close")}</button>
+            </div>
+            <StatsTable uid={player.uid} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
