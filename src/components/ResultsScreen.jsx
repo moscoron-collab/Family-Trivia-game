@@ -24,7 +24,8 @@ const RANK_EMOJIS = ["🥇", "🥈", "🥉"];
 export default function ResultsScreen({ room, code, player, onPlayAgain, onResetRoom }) {
   const [showReview, setShowReview] = useState(false);
   const [playAgainVoted, setPlayAgainVoted] = useState(false);
-  const [playAgainCountdown, setPlayAgainCountdown] = useState(60);
+  const [myVote, setMyVote] = useState(null);
+  const [playAgainCountdown, setPlayAgainCountdown] = useState(20);
   const [showFireworks, setShowFireworks] = useState(true);
   const fireworksRef = useRef(null);
 
@@ -37,6 +38,10 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
   const isWinner = winner?.uid === player.uid;
   const myTopicStats = getTopicStats(myAnswers, questions);
   const playAgainVotes = room.playAgainVotes || {};
+  const activeForVote = Object.values(room.players || {}).filter((p) => p.status !== "quit");
+  const otherWaiting = activeForVote.filter(
+    (p) => p.uid !== player.uid && !playAgainVotes[p.uid]
+  ).length;
 
   // Fireworks
   useEffect(() => {
@@ -93,8 +98,17 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
     }
   }, [playAgainVotes]);
 
+  // Don't get stuck waiting: if you chose to play again, start the new round
+  // automatically once the countdown ends (even if others never respond).
+  useEffect(() => {
+    if (playAgainCountdown === 0 && myVote === "join") {
+      onResetRoom();
+    }
+  }, [playAgainCountdown, myVote]);
+
   const handlePlayAgain = async (vote) => {
     setPlayAgainVoted(true);
+    setMyVote(vote);
     await onPlayAgain(vote);
   };
 
@@ -233,14 +247,21 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
                   🚪 I'm done, thanks!
                 </button>
               </div>
+            </>
+          ) : myVote === "leave" ? (
+            <p className="text-secondary">👋 Thanks for playing!</p>
+          ) : (
+            <>
+              <p className="text-secondary mb-md">
+                ✅ You're in!{otherWaiting > 0 ? ` Waiting for ${otherWaiting} other player${otherWaiting > 1 ? "s" : ""}…` : " Starting…"}
+              </p>
+              <button id="btn-start-now" className="btn btn-primary btn-full" onClick={onResetRoom}>
+                ▶️ Start now (don't wait)
+              </button>
               <p className="text-xs text-muted mt-sm">
-                Auto-closes in {playAgainCountdown}s
+                New round starts automatically in {playAgainCountdown}s
               </p>
             </>
-          ) : (
-            <p className="text-secondary">
-              ✅ Vote recorded! Waiting for others... ({playAgainCountdown}s)
-            </p>
           )}
 
           {/* Vote status */}
