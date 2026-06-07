@@ -129,7 +129,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
     } catch {}
     recordGameResult(player.uid, {
       score: myData.score || 0,
-      isWin,
+      isWin: isWinner,
       difficulty: room.settings?.difficulty,
       answers: myData.answers || {},
       qids: questions.map((q) => q && q.qid).filter(Boolean),
