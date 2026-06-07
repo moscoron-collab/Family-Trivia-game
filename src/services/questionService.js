@@ -1,23 +1,17 @@
 // ============================================================
 // Question Service
-// Pulls trivia questions from the local question bank (src/data).
+// Builds each game's questions from the local banks (src/data).
 // - Instant & offline: no network call, so the game ALWAYS starts.
 // - No repeats within a game (questions are de-duplicated).
 // - Answers are shuffled, so the correct answer isn't always "A".
-// - Supports English ("en") and Hebrew ("he").
+// - Each question is stored in BOTH English and Hebrew, so every
+//   player can read it in their own language in the same game.
 // ============================================================
 
 import questionBank from "../data/questionBank";
 import questionBankHe from "../data/questionBankHe";
 
-const BANKS = {
-  en: questionBank,
-  he: questionBankHe,
-};
-
-function getBank(lang) {
-  return BANKS[lang] || BANKS.en;
-}
+const BANKS = { en: questionBank, he: questionBankHe };
 
 // Topics carry both an English and a Hebrew name + a shared emoji.
 export const TOPICS = [
@@ -39,19 +33,22 @@ export const TOPICS = [
   { id: "fortnite", emoji: "🎮", name: { en: "Fortnite Trivia", he: "פורטנייט" } },
 ];
 
-// Just the topic name in the given language (no emoji).
 export function topicName(topic, lang = "en") {
   return (topic.name && (topic.name[lang] || topic.name.en)) || topic.id;
 }
 
-// Emoji + name, e.g. "⚽ Soccer Trivia" / "⚽ כדורגל".
 export function topicLabel(topic, lang = "en") {
   return `${topic.emoji} ${topicName(topic, lang)}`;
 }
 
+// Look up a topic's label straight from its id (used where we only stored the id).
+export function topicLabelById(topicId, lang = "en") {
+  const t = TOPICS.find((x) => x.id === topicId);
+  return t ? topicLabel(t, lang) : topicId;
+}
+
 const DIFFICULTIES = ["easy", "medium", "hard"];
 
-// Fisher–Yates shuffle (returns a new array, doesn't mutate the original)
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -66,66 +63,63 @@ function getRandomTopicId() {
   return real[Math.floor(Math.random() * real.length)].id;
 }
 
-// Turn a raw bank entry into a game-ready question with shuffled answers.
-function prepareQuestion(raw, topicId, difficulty, lang) {
-  const topic = TOPICS.find((t) => t.id === topicId);
-  const label = topic ? topicLabel(topic, lang) : topicId;
-  const correctAnswer = raw.answers[raw.correctIndex];
-  const answers = shuffle(raw.answers);
-  return {
+// Build one game-ready question that contains BOTH languages.
+// The answer order (and therefore correctIndex) is shared, so scoring is
+// identical no matter which language a player is reading.
+function buildQuestion(topicId, difficulty, qIndex) {
+  const enRaw = questionBank[topicId][difficulty][qIndex];
+  const heRaw = questionBankHe[topicId]?.[difficulty]?.[qIndex] || enRaw;
+  const order = shuffle([0, 1, 2, 3]);
+  const localize = (raw) => ({
     question: raw.question,
-    answers,
-    correctIndex: answers.indexOf(correctAnswer),
+    answers: order.map((k) => raw.answers[k]),
     explanation: raw.explanation || "",
-    topic: label,
+  });
+  return {
     topicId,
     difficulty,
+    correctIndex: order.indexOf(enRaw.correctIndex), // correctIndex is 0 in the bank
+    en: localize(enRaw),
+    he: localize(heRaw),
   };
 }
 
-// generateQuestions stays async so callers (Lobby) don't need to change.
-export async function generateQuestions(selectedTopicIds, difficulty, count = 20, lang = "en") {
-  const bank = getBank(lang);
-
-  // Resolve "random" picks into real topics, keep only topics we actually have.
+// Pick the questions for a game. Returns language-neutral, bilingual question
+// objects (stays async so callers don't need to change).
+export async function generateQuestions(selectedTopicIds, difficulty, count = 20) {
+  // Resolve "random" picks; keep only topics we have.
   let topics = (selectedTopicIds || []).map((id) =>
     id === "random" ? getRandomTopicId() : id
   );
-  topics = [...new Set(topics)].filter((t) => bank[t]);
+  topics = [...new Set(topics)].filter((t) => questionBank[t]);
   if (topics.length === 0) topics = [getRandomTopicId()];
 
   const diff = DIFFICULTIES.includes(difficulty) ? difficulty : "medium";
 
-  // Collect candidate questions, de-duplicated by question text.
+  // Collect candidate questions (by topic/difficulty/index), de-duplicated.
   const seen = new Set();
   const pool = [];
   const addPool = (topicId, d) => {
-    const arr = bank[topicId]?.[d] || [];
-    for (const q of arr) {
-      if (seen.has(q.question)) continue;
+    const arr = questionBank[topicId]?.[d] || [];
+    arr.forEach((q, qIndex) => {
+      if (seen.has(q.question)) return;
       seen.add(q.question);
-      pool.push({ raw: q, topicId, difficulty: d });
-    }
+      pool.push({ topicId, difficulty: d, qIndex });
+    });
   };
 
-  // Priority 1: selected topics at the chosen difficulty.
   topics.forEach((t) => addPool(t, diff));
-  // Priority 2: selected topics at other difficulties (if we need more).
   if (pool.length < count) {
-    DIFFICULTIES.filter((d) => d !== diff).forEach((d) =>
-      topics.forEach((t) => addPool(t, d))
-    );
-  }
-  // Priority 3: any topic at the chosen difficulty, then anything at all.
-  if (pool.length < count) {
-    Object.keys(bank).forEach((t) => addPool(t, diff));
+    DIFFICULTIES.filter((d) => d !== diff).forEach((d) => topics.forEach((t) => addPool(t, d)));
   }
   if (pool.length < count) {
-    Object.keys(bank).forEach((t) =>
-      DIFFICULTIES.forEach((d) => addPool(t, d))
-    );
+    Object.keys(questionBank).forEach((t) => addPool(t, diff));
+  }
+  if (pool.length < count) {
+    Object.keys(questionBank).forEach((t) => DIFFICULTIES.forEach((d) => addPool(t, d)));
   }
 
-  const chosen = shuffle(pool).slice(0, count);
-  return chosen.map((item) => prepareQuestion(item.raw, item.topicId, item.difficulty, lang));
+  return shuffle(pool)
+    .slice(0, count)
+    .map((p) => buildQuestion(p.topicId, p.difficulty, p.qIndex));
 }

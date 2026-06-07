@@ -6,7 +6,6 @@ import {
   voteDifficulty,
   computeMajorityDifficulty,
   computeTopTopics,
-  setRoomLanguage,
 } from "../firebase/room";
 import { useLang, useT } from "../i18n.jsx";
 import LanguageToggle from "./LanguageToggle";
@@ -95,7 +94,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
     setStarting(true);
 
     try {
-      const questions = await generateQuestions(finalTopics, finalDifficulty, 20, lang);
+      const questions = await generateQuestions(finalTopics, finalDifficulty, 20);
       if (questions.length === 0) {
         setError(tr("errNoQuestions"));
         setStarting(false);
@@ -134,7 +133,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
             <p className="text-xs text-muted">{tr("lobbySubtitle")}</p>
           </div>
           <div className="row gap-sm">
-            <LanguageToggle onChange={(l) => setRoomLanguage(code, l)} />
+            <LanguageToggle />
             <div className="room-code" style={{ padding: "0.5rem 1rem" }}>
               <div>
                 <div className="room-code-label">{tr("room")}</div>

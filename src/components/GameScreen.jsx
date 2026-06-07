@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { sounds } from "../services/sounds";
-import { useT } from "../i18n.jsx";
+import { useLang, useT } from "../i18n.jsx";
+import { topicLabelById } from "../services/questionService";
 
 const QUESTION_TIME = 15; // seconds
 const DIFF_LABEL_KEY = { easy: "diffEasy", medium: "diffMedium", hard: "diffHard" };
 
 export default function GameScreen({ room, code, player, myData, onSubmitAnswer, onFinish, onQuit }) {
   const tr = useT();
+  const { lang } = useLang();
   // Firebase RTDB may return arrays as objects — normalize both questions and answers
   const toArray = (val) => {
     if (!val) return [];
@@ -14,10 +16,8 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
     return Object.keys(val).sort((a, b) => Number(a) - Number(b)).map(k => val[k]);
   };
 
-  const questions = toArray(room.questions).map(q => ({
-    ...q,
-    answers: toArray(q?.answers),
-  }));
+  // Questions are stored bilingually; pick the current player's language.
+  const questions = toArray(room.questions);
 
   const currentIndex = myData?.questionIndex || 0;
   const isFinished = myData?.status === "finished";
@@ -47,6 +47,9 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
   const players = Object.values(room.players || {});
   const activePlayers = players.filter((p) => p.status !== "quit");
   const currentQuestion = questions[currentIndex];
+  // Localized view of the current question (text + answers in the player's language)
+  const loc = currentQuestion ? (currentQuestion[lang] || currentQuestion.en) : null;
+  const locAnswers = toArray(loc?.answers);
 
   // questionKey drives the timer — increments each time we're ready for a new question
   const [questionKey, setQuestionKey] = useState(0);
@@ -183,7 +186,7 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
             <span className="question-progress">
               {tr("question", { n: currentIndex + 1, total: questions.length })}
             </span>
-            <span className="question-topic-badge">{currentQuestion.topic}</span>
+            <span className="question-topic-badge">{topicLabelById(currentQuestion.topicId, lang)}</span>
           </div>
           <button
             id="btn-quit-game"
@@ -216,10 +219,10 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
 
         {/* Question */}
         <div className="card mb-md" style={{ background: "linear-gradient(145deg, var(--bg-card), var(--bg-secondary))" }}>
-          <p className="question-text">{currentQuestion.question}</p>
+          <p className="question-text">{loc.question}</p>
 
           <div className="answer-grid">
-            {currentQuestion.answers.map((answer, idx) => {
+            {locAnswers.map((answer, idx) => {
               // Only highlight the answer the player picked (neutral) — no
               // green/red right-or-wrong reveal here; results come at the end.
               let cls = "answer-btn";

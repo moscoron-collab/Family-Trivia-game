@@ -1,21 +1,28 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useT } from "../i18n.jsx";
+import { useLang, useT } from "../i18n.jsx";
+import { topicLabelById } from "../services/questionService";
 
 const FIREWORK_COLORS = ["#7c3aed", "#3b82f6", "#06b6d4", "#ec4899", "#f97316", "#22c55e", "#eab308", "#ef4444"];
 
-function getTopicStats(answers, questions) {
+// Firebase may hand arrays back as objects — normalize to an ordered array.
+function toArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return Object.keys(val).sort((a, b) => Number(a) - Number(b)).map((k) => val[k]);
+}
+
+function getTopicStats(answers, questions, lang) {
   const topicMap = {};
   Object.entries(answers || {}).forEach(([idx, ans]) => {
     const q = questions[parseInt(idx)];
-    if (!q) return;
-    const tid = q.topicId || "unknown";
-    const label = q.topic || tid;
-    if (!topicMap[tid]) topicMap[tid] = { label, correct: 0, total: 0 };
+    const tid = (q && q.topicId) || ans.topicId || "unknown";
+    if (!topicMap[tid]) topicMap[tid] = { tid, correct: 0, total: 0 };
     topicMap[tid].total++;
     if (ans.isCorrect) topicMap[tid].correct++;
   });
   return Object.values(topicMap).map((t) => ({
     ...t,
+    label: topicLabelById(t.tid, lang),
     pct: t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0,
   })).sort((a, b) => b.pct - a.pct);
 }
@@ -24,6 +31,7 @@ const RANK_EMOJIS = ["🥇", "🥈", "🥉"];
 
 export default function ResultsScreen({ room, code, player, onPlayAgain, onResetRoom }) {
   const tr = useT();
+  const { lang } = useLang();
   const [showReview, setShowReview] = useState(false);
   const [playAgainVoted, setPlayAgainVoted] = useState(false);
   const [myVote, setMyVote] = useState(null);
@@ -34,11 +42,11 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
   const players = Object.values(room.players || {}).filter((p) => p.status !== "quit" || p.score > 0);
   const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
   const winner = sortedPlayers[0];
-  const questions = room.questions || [];
+  const questions = toArray(room.questions);
   const myData = room.players?.[player.uid];
   const myAnswers = myData?.answers || {};
   const isWinner = winner?.uid === player.uid;
-  const myTopicStats = getTopicStats(myAnswers, questions);
+  const myTopicStats = getTopicStats(myAnswers, questions, lang);
   const playAgainVotes = room.playAgainVotes || {};
   const activeForVote = Object.values(room.players || {}).filter((p) => p.status !== "quit");
   const otherWaiting = activeForVote.filter(
@@ -204,28 +212,30 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
               const myAns = myAnswers[idx];
               const isCorrect = myAns?.isCorrect;
               const didAnswer = myAns !== undefined && myAns.answerIndex !== -1;
+              const locQ = q[lang] || q.en || q;
+              const ans = toArray(locQ.answers);
               return (
                 <div key={idx} className={`review-item ${isCorrect ? "correct-review" : "wrong-review"}`}>
                   <div className="review-question">
                     <span className={`badge ${isCorrect ? "badge-green" : "badge-red"}`} style={{ marginRight: "0.375rem" }}>
                       {isCorrect ? "✓" : "✗"}
                     </span>
-                    {q.question}
+                    {locQ.question}
                   </div>
                   {didAnswer && (
                     <div className="review-your-answer text-muted">
                       {tr("yourAnswer")} <strong style={{ color: isCorrect ? "var(--accent-green)" : "var(--accent-red)" }}>
-                        {q.answers[myAns.answerIndex]}
+                        {ans[myAns.answerIndex]}
                       </strong>
                     </div>
                   )}
                   {!isCorrect && (
                     <div className="review-correct-answer">
-                      {tr("correctAnswer")} {q.answers[q.correctIndex]}
+                      {tr("correctAnswer")} {ans[q.correctIndex]}
                     </div>
                   )}
-                  {q.explanation && (
-                    <div className="review-explanation">💡 {q.explanation}</div>
+                  {locQ.explanation && (
+                    <div className="review-explanation">💡 {locQ.explanation}</div>
                   )}
                 </div>
               );

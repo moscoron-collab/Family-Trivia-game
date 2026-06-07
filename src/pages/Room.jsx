@@ -15,7 +15,7 @@ import {
   resetRoom,
 } from "../firebase/room";
 import { generateQuestions, TOPICS } from "../services/questionService";
-import { useLang, useT } from "../i18n.jsx";
+import { useT } from "../i18n.jsx";
 
 // Sub-components
 import Lobby from "../components/Lobby";
@@ -26,19 +26,12 @@ import Countdown from "../components/Countdown";
 export default function Room() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { lang, setLang } = useLang();
   const tr = useT();
   const [player, setPlayer] = useState(null);
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const unsubRef = useRef(null);
-
-  // Adopt the room's chosen language so everyone in the room matches.
-  useEffect(() => {
-    const roomLang = room?.settings?.language;
-    if (roomLang && roomLang !== lang) setLang(roomLang);
-  }, [room?.settings?.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const stored = sessionStorage.getItem("player");

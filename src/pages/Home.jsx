@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithGoogle, signInAsGuest } from "../firebase/auth";
 import { createRoom, joinRoom } from "../firebase/room";
-import { useLang, useT } from "../i18n.jsx";
+import { useT } from "../i18n.jsx";
 import LanguageToggle from "../components/LanguageToggle";
 
 const PRESET_NAMES = ["Daniel", "Lea", "Aba", "Ima"];
@@ -10,7 +10,6 @@ const PLAYER_COLORS = ["#7c3aed", "#3b82f6", "#06b6d4", "#ec4899", "#f97316", "#
 
 export default function Home() {
   const navigate = useNavigate();
-  const { lang } = useLang();
   const tr = useT();
   const [mode, setMode] = useState(null); // null | 'create' | 'join'
   const [authStep, setAuthStep] = useState(false);
@@ -65,7 +64,7 @@ export default function Home() {
       sessionStorage.setItem("player", JSON.stringify(playerData));
 
       if (pendingAction === "create") {
-        const code = await createRoom(playerData, lang);
+        const code = await createRoom(playerData);
         navigate(`/room/${code}`);
       } else {
         await joinRoom(joinCode.trim(), playerData);
