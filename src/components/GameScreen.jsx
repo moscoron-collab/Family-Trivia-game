@@ -111,8 +111,8 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
 
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
+        // Stay silent at the start — only tick during the final 5 seconds.
         if (t <= 5 && t > 1) sounds.urgentTick();
-        else if (t > 5) sounds.tick();
         if (t <= 1) {
           clearInterval(timerRef.current);
           handleAnswerRef.current(-1);
