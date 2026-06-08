@@ -29,6 +29,33 @@ function getTopicStats(answers, questions, lang) {
   })).sort((a, b) => b.pct - a.pct);
 }
 
+// Longest run of consecutive correct answers (computed at the end).
+function longestStreak(answers) {
+  const entries = Object.entries(answers || {}).sort((a, b) => Number(a[0]) - Number(b[0]));
+  let best = 0, cur = 0;
+  for (const [, a] of entries) {
+    if (a.isCorrect) { cur++; best = Math.max(best, cur); } else { cur = 0; }
+  }
+  return best;
+}
+
+// Animated number that counts up to `value`.
+function CountUp({ value, duration = 900 }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / duration);
+      setN(Math.round((value || 0) * (1 - Math.pow(1 - p, 3)))); // easeOutCubic
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{n}</>;
+}
+
 const RANK_EMOJIS = ["🥇", "🥈", "🥉"];
 
 export default function ResultsScreen({ room, code, player, onPlayAgain, onResetRoom }) {
@@ -50,6 +77,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
   const myAnswers = myData?.answers || {};
   const isWinner = winner?.uid === player.uid;
   const myTopicStats = getTopicStats(myAnswers, questions, lang);
+  const myStreak = longestStreak(myAnswers);
   const playAgainVotes = room.playAgainVotes || {};
   const activeForVote = Object.values(room.players || {}).filter((p) => p.status !== "quit");
   const otherWaiting = activeForVote.filter(
@@ -160,7 +188,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
           </div>
           <h2 style={{ color: "var(--accent-yellow)", marginTop: "0.25rem" }}>{winner?.name}</h2>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "2rem", fontWeight: 900, color: "var(--text-primary)", marginTop: "0.25rem" }}>
-            {winner?.score || 0} {tr("pts")}
+            <CountUp value={winner?.score || 0} /> {tr("pts")}
           </p>
           {isWinner && (
             <div className="badge badge-yellow" style={{ margin: "0.5rem auto 0" }}>{tr("thatsYou")}</div>
@@ -184,7 +212,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
                   {p.status === "quit" ? tr("leftEarly") : tr("correctCount", { n: Object.values(p.answers || {}).filter((a) => a.isCorrect).length, total: questions.length })}
                 </div>
               </div>
-              <span className="leaderboard-score">{p.score || 0}</span>
+              <span className="leaderboard-score"><CountUp value={p.score || 0} /></span>
             </div>
           ))}
         </div>
@@ -210,6 +238,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
               ))}
             </div>
             <div className="row gap-sm mt-md" style={{ flexWrap: "wrap" }}>
+              {myStreak > 1 && <span className="badge badge-yellow">{tr("bestStreak", { n: myStreak })}</span>}
               {myTopicStats[0] && <span className="badge badge-green">{tr("strong", { t: myTopicStats[0].label })}</span>}
               {myTopicStats[myTopicStats.length - 1] && myTopicStats.length > 1 && (
                 <span className="badge badge-red">{tr("weak", { t: myTopicStats[myTopicStats.length - 1].label })}</span>
