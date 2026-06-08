@@ -123,9 +123,18 @@ export async function generateQuestions(selectedTopicIds, difficulty, count = 20
     return tier;
   };
   const tier1 = makeTier(topics.map((t) => [t, diff]));
-  const tier2 = makeTier(DIFFICULTIES.filter((d) => d !== diff).flatMap((d) => topics.map((t) => [t, d])));
+  // If the chosen difficulty runs low, borrow from the CLOSEST difficulty first
+  // and avoid dropping to "easy" for a medium/hard game — so e.g. a medium game
+  // never fills up with trivially easy questions. Each fallback difficulty is its
+  // own tier so the preferred one is exhausted before the next.
+  const FALLBACK = {
+    easy: ["medium", "hard"],
+    medium: ["hard", "easy"],
+    hard: ["medium", "easy"],
+  };
+  const fallbackTiers = (FALLBACK[diff] || []).map((d) => makeTier(topics.map((t) => [t, d])));
   const tier3 = makeTier(Object.keys(questionBank).flatMap((t) => DIFFICULTIES.map((d) => [t, d])));
-  const tiers = [tier1, tier2, tier3];
+  const tiers = [tier1, ...fallbackTiers, tier3];
 
   const chosen = [];
   const taken = new Set();
