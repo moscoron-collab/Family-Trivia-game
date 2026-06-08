@@ -337,7 +337,7 @@ function LiveStatus({ players, myUid, questions, mini }) {
           <div key={p.uid} className="live-status-player">
             <div className={`status-dot ${statusDot}`} />
             <span style={{ color: p.uid === myUid ? p.color : "var(--text-secondary)", fontWeight: p.uid === myUid ? 700 : 400 }}>
-              {p.name}
+              {p.avatar ? `${p.avatar} ` : ""}{p.name}
             </span>
             <span className="text-xs text-muted" style={{ marginInlineStart: "auto" }}>
               {p.status === "finished" ? tr("done") : p.status === "quit" ? tr("left") : `${Math.min((p.questionIndex || 0) + 1, total)}/${total}`}

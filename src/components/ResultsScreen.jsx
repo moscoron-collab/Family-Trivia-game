@@ -56,6 +56,27 @@ function CountUp({ value, duration = 900 }) {
   return <>{n}</>;
 }
 
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Convert a data URL to a File synchronously (keeps the user-gesture alive for
+// navigator.share on iOS — async toBlob can drop the gesture token there).
+function dataURLtoFile(dataUrl, name) {
+  const [head, b64] = dataUrl.split(",");
+  const mime = (head.match(/:(.*?);/) || [])[1] || "image/png";
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new File([u8], name, { type: mime });
+}
+
 const RANK_EMOJIS = ["🥇", "🥈", "🥉"];
 
 export default function ResultsScreen({ room, code, player, onPlayAgain, onResetRoom }) {
@@ -78,6 +99,85 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
   const isWinner = winner?.uid === player.uid;
   const myTopicStats = getTopicStats(myAnswers, questions, lang);
   const myStreak = longestStreak(myAnswers);
+
+  // Build a shareable result card (PNG) and share it via the OS share sheet,
+  // falling back to a download where Web Share with files isn't supported.
+  const handleShare = () => {
+    const W = 540, H = 675, scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, "#1a1033");
+    g.addColorStop(1, "#0a0a16");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = "rgba(124,58,237,0.22)";
+    ctx.beginPath();
+    ctx.arc(W / 2, 110, 210, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#a78bfa";
+    ctx.font = "700 22px system-ui, -apple-system, sans-serif";
+    ctx.fillText("🏆 " + tr("shareCardTitle"), W / 2, 48);
+
+    ctx.font = "78px system-ui, sans-serif";
+    ctx.fillText(winner?.avatar || "🏆", W / 2, 168);
+
+    ctx.fillStyle = "#eab308";
+    ctx.font = "700 15px system-ui, sans-serif";
+    ctx.fillText(tr("shareWinnerLabel"), W / 2, 205);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "800 38px system-ui, sans-serif";
+    ctx.fillText(winner?.name || "", W / 2, 250);
+
+    ctx.fillStyle = "#22d3ee";
+    ctx.font = "900 54px ui-monospace, monospace";
+    ctx.fillText(String(winner?.score || 0), W / 2, 318);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "600 17px system-ui, sans-serif";
+    ctx.fillText(tr("sharePoints"), W / 2, 344);
+
+    let y = 408;
+    sortedPlayers.slice(0, 5).forEach((p, i) => {
+      const medal = RANK_EMOJIS[i] || `#${i + 1}`;
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      roundRect(ctx, 56, y - 27, W - 112, 42, 12);
+      ctx.fill();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "600 21px system-ui, sans-serif";
+      ctx.fillText(`${medal}  ${p.avatar || "•"}  ${p.name}`, 78, y + 1);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#22d3ee";
+      ctx.font = "700 21px ui-monospace, monospace";
+      ctx.fillText(String(p.score || 0), W - 78, y + 1);
+      y += 52;
+    });
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#64748b";
+    ctx.font = "600 15px system-ui, sans-serif";
+    ctx.fillText(window.location.origin.replace(/^https?:\/\//, ""), W / 2, H - 26);
+
+    const dataUrl = canvas.toDataURL("image/png");
+    const file = dataURLtoFile(dataUrl, "family-trivia-result.png");
+    const text = tr("shareWonText", { name: winner?.name || "" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: tr("shareCardTitle"), text }).catch(() => {});
+    } else {
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "family-trivia-result.png";
+      a.click();
+    }
+  };
   const playAgainVotes = room.playAgainVotes || {};
   const activeForVote = Object.values(room.players || {}).filter((p) => p.status !== "quit");
   const otherWaiting = activeForVote.filter(
@@ -186,7 +286,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
           <div className="text-gold" style={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginTop: "0.25rem" }}>
             {tr("winner")}
           </div>
-          <h2 style={{ color: "var(--accent-yellow)", marginTop: "0.25rem" }}>{winner?.name}</h2>
+          <h2 style={{ color: "var(--accent-yellow)", marginTop: "0.25rem" }}>{winner?.avatar ? `${winner.avatar} ` : ""}{winner?.name}</h2>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "2rem", fontWeight: 900, color: "var(--text-primary)", marginTop: "0.25rem" }}>
             <CountUp value={winner?.score || 0} /> {tr("pts")}
           </p>
@@ -202,7 +302,7 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
             <div key={p.uid} className={`leaderboard-item rank-${i + 1}`}>
               <span className="rank-badge">{RANK_EMOJIS[i] || `#${i + 1}`}</span>
               <div className="player-avatar" style={{ background: (p.color || "#7c3aed") + "30", color: p.color || "#7c3aed" }}>
-                {p.name[0].toUpperCase()}
+                {p.avatar || p.name[0].toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>
@@ -216,6 +316,11 @@ export default function ResultsScreen({ room, code, player, onPlayAgain, onReset
             </div>
           ))}
         </div>
+
+        {/* Share result */}
+        <button id="btn-share" className="btn btn-secondary btn-full mb-md" onClick={handleShare}>
+          {tr("shareResult")}
+        </button>
 
         {/* My Topic Stats */}
         {myTopicStats.length > 0 && (

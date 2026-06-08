@@ -160,7 +160,7 @@ export default function Lobby({ room, code, player, onStartGame }) {
             {players.map((p) => (
               <div key={p.uid} className="player-chip" style={{ borderColor: p.uid === player.uid ? p.color : undefined }}>
                 <div className="player-avatar" style={{ background: p.color + "30", color: p.color }}>
-                  {p.name[0].toUpperCase()}
+                  {p.avatar || p.name[0].toUpperCase()}
                 </div>
                 <span style={{ color: p.uid === player.uid ? p.color : "var(--text-primary)" }}>
                   {p.name} {p.uid === player.uid ? tr("you") : ""}

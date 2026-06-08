@@ -7,6 +7,7 @@ import LanguageToggle from "../components/LanguageToggle";
 
 const PRESET_NAMES = ["Daniel", "Lea", "Aba", "Ima"];
 const PLAYER_COLORS = ["#7c3aed", "#3b82f6", "#06b6d4", "#ec4899", "#f97316", "#22c55e", "#eab308", "#ef4444"];
+const AVATARS = ["🦊", "🐼", "🐵", "🦁", "🐯", "🐸", "🐙", "🦄", "🐧", "🐶", "🐱", "🐨", "🐰", "🐮", "🦖", "🐲"];
 
 export default function Home() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function Home() {
   const [authMode, setAuthMode] = useState(null); // 'google' | 'guest'
   const [playerName, setPlayerName] = useState("");
   const [customName, setCustomName] = useState("");
+  const [avatar, setAvatar] = useState(() => AVATARS[Math.floor(Math.random() * AVATARS.length)]);
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -54,6 +56,7 @@ export default function Home() {
       const playerData = {
         uid: user.uid,
         name: getFinalName(),
+        avatar,
         isGuest: method === "guest",
         photoURL: user.photoURL || null,
         color: PLAYER_COLORS[colorIndex],
@@ -190,6 +193,23 @@ export default function Home() {
                 onChange={(e) => { setCustomName(e.target.value); setPlayerName(""); setError(""); }}
                 maxLength={20}
               />
+
+              {/* Avatar picker */}
+              <div>
+                <p className="text-xs text-muted mb-sm">{tr("chooseAvatar")}</p>
+                <div className="avatar-grid">
+                  {AVATARS.map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      className={`avatar-option ${avatar === a ? "selected" : ""}`}
+                      onClick={() => setAvatar(a)}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {mode === "join" && (
                 <input
