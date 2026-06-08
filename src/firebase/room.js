@@ -106,6 +106,17 @@ export async function sendChatMessage(code, player, message) {
   });
 }
 
+// Throw a quick emoji reaction that floats on everyone's screen (live).
+export async function sendReaction(code, player, emoji) {
+  await push(ref(db, `rooms/${code}/reactions`), {
+    emoji,
+    uid: player.uid,
+    name: player.name,
+    x: Math.floor(Math.random() * 80) + 10, // horizontal position 10–90%
+    ts: Date.now(),
+  });
+}
+
 // Vote for topics
 export async function voteTopics(code, uid, topicIds) {
   await update(ref(db, `rooms/${code}/settings/topicVotes`), {
@@ -152,6 +163,7 @@ export async function startGame(code, questions, difficulty, topics) {
     "settings/topics": topics,
     gameStartedAt: Date.now(),
     playAgainVotes: {},
+    reactions: null,
   });
 
   // Update all lobby players to "playing"
@@ -282,6 +294,7 @@ export async function resetRoom(code) {
   updates[`rooms/${code}/settings/difficultyVotes`] = {};
   updates[`rooms/${code}/playAgainVotes`] = {};
   updates[`rooms/${code}/chat`] = {};
+  updates[`rooms/${code}/reactions`] = null;
 
   await update(ref(db), updates);
 }

@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { sounds } from "../services/sounds";
 import { useLang, useT } from "../i18n.jsx";
 import { topicLabelById } from "../services/questionService";
+import { sendReaction } from "../firebase/room";
 
 const QUESTION_TIME = 15; // seconds
 const DIFF_LABEL_KEY = { easy: "diffEasy", medium: "diffMedium", hard: "diffHard" };
+const REACTION_EMOJIS = ["😂", "🔥", "👏", "😱", "❤️", "🎉"];
+const vibrate = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch {} };
 
 export default function GameScreen({ room, code, player, myData, onSubmitAnswer, onFinish, onQuit }) {
   const tr = useT();
@@ -61,9 +64,10 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
     setSelectedAnswer(answerIndex);
     clearInterval(timerRef.current);
 
-    // Neutral tap sound only — whether the answer was right or wrong is NOT
-    // revealed during the game; all results are shown at the end.
+    // Neutral tap sound + buzz only — whether the answer was right or wrong is
+    // NOT revealed during the game; all results are shown at the end.
     sounds.select();
+    vibrate(10);
 
     const elapsed = Date.now() - startTimeRef.current;
     try {
@@ -125,6 +129,11 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
   const timerClass = timeLeft > 10 ? "safe" : timeLeft > 5 ? "warn" : "danger";
 
   const LETTERS = ["A", "B", "C", "D"];
+
+  const throwReaction = (emoji) => {
+    vibrate(8);
+    sendReaction(code, player, emoji);
+  };
 
   if (isFinished) {
     const stillPlaying = activePlayers.filter((p) => p.status === "playing");
@@ -265,7 +274,16 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
             })}
           </span>
         </div>
+
+        {/* Live emoji reactions */}
+        <div className="reaction-bar">
+          {REACTION_EMOJIS.map((e) => (
+            <button key={e} type="button" className="reaction-btn" onClick={() => throwReaction(e)}>{e}</button>
+          ))}
+        </div>
       </div>
+
+      <FloatingReactions reactions={room.reactions} />
 
       {/* Quit Confirm Modal */}
       {showQuitConfirm && (
@@ -286,6 +304,23 @@ export default function GameScreen({ room, code, player, myData, onSubmitAnswer,
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function FloatingReactions({ reactions }) {
+  const now = Date.now();
+  const list = Object.entries(reactions || {})
+    .map(([id, r]) => ({ id, ...r }))
+    .filter((r) => r && r.ts && now - r.ts < 3500);
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 150, overflow: "hidden" }}>
+      {list.map((r) => (
+        <div key={r.id} className="reaction-float" style={{ left: `${r.x ?? 50}%` }}>
+          <div className="reaction-emoji">{r.emoji}</div>
+          <div className="reaction-name">{r.name}</div>
+        </div>
+      ))}
     </div>
   );
 }

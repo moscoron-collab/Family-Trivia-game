@@ -1077,3 +1077,60 @@ h4 { font-size: 1rem; font-weight: 600; }
 [dir="rtl"] .answer-btn { text-align: right; }
 [dir="rtl"] .leaderboard-score { margin-left: 0; margin-right: auto; }
 [dir="rtl"] .chat-message-name { margin-right: 0; margin-left: 0.25rem; }
+
+/* ============================================================
+   LIVE EMOJI REACTIONS
+============================================================ */
+.reaction-bar {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.reaction-btn {
+  font-size: 1.4rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.reaction-btn:hover { background: var(--bg-glass-hover); }
+.reaction-btn:active { transform: scale(0.8); }
+
+.reaction-float {
+  position: absolute;
+  bottom: 90px;
+  text-align: center;
+  animation: reaction-rise 3.2s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.reaction-emoji {
+  font-size: 2.2rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.reaction-name {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+@keyframes reaction-rise {
+  0% { transform: translate(-50%, 0) scale(0.4); opacity: 0; }
+  15% { transform: translate(-50%, -16px) scale(1.15); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(-50%, -240px) scale(1); opacity: 0; }
+}
